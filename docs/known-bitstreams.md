@@ -14,7 +14,9 @@ For comparison: an FY6600 V3.1 dump has a different bitstream (different hardwar
 ## Please report
 
 If you have an FY6900 – especially a **working** one with the stock bitstream – please open
-an issue with:
+an issue with the template
+[**Bitstream report**](https://github.com/Marvin-4-2/FY6900_FPGA/issues/new?template=bitstream_report.yml).
+It asks for:
 
 * the output of `python tools/fy6900_flash.py info <your dump>`
 * the revisions printed on the FPGA board and on the front panel board

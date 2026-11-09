@@ -1,0 +1,72 @@
+name: Bitstream report
+description: Report the bitstream fingerprint and the board revisions of your FY6900 (compatibility list)
+title: "[Bitstream] <model>, FPGA board <revision>"
+labels: ["bitstream report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping to build the compatibility list (see `docs/known-bitstreams.md`).
+        **Please do not attach flash dumps** – they contain the manufacturer's data. The SHA-256
+        printed by the tool is all that is needed.
+  - type: textarea
+    id: info
+    attributes:
+      label: Output of `python tools/fy6900_flash.py info <your dump>`
+      description: Paste the complete output.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      placeholder: e.g. FY6900-60M
+    validations:
+      required: true
+  - type: input
+    id: fpga_board
+    attributes:
+      label: FPGA board revision
+      description: Printed on the FPGA board (the board with the Cyclone IV FPGA and the BNC outputs).
+      placeholder: e.g. V2.1
+    validations:
+      required: true
+  - type: input
+    id: front_panel
+    attributes:
+      label: Front panel board revision
+      placeholder: e.g. V2.2
+  - type: input
+    id: firmware
+    attributes:
+      label: STM32 firmware version
+      description: Shown at start-up.
+      placeholder: e.g. 1.8.0
+    validations:
+      required: true
+  - type: dropdown
+    id: stock_works
+    attributes:
+      label: Does the stock bitstream work on your unit?
+      options:
+        - "Yes – both channels output waveforms"
+        - "No – no waveform output"
+        - "Not tested"
+    validations:
+      required: true
+  - type: dropdown
+    id: this_project
+    attributes:
+      label: Have you installed this project's bitstream?
+      options:
+        - "No"
+        - "Yes – works"
+        - "Yes – with problems (please describe below)"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else – differences on the board, photos of the board revision label, observations.

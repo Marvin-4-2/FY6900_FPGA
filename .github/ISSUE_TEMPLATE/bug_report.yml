@@ -1,0 +1,56 @@
+name: Bug report
+description: Something does not work as expected with this project's bitstream or tools
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check `docs/fpga-design.md` (known limitations) first. For questions and
+        experience reports use Discussions instead.
+  - type: input
+    id: version
+    attributes:
+      label: Bitstream / tool version
+      placeholder: e.g. v0.18
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Model, FPGA board revision, front panel board revision.
+      placeholder: e.g. FY6900-60M, FPGA board V2.1, front panel V2.2
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: STM32 firmware version
+      placeholder: e.g. 1.8.0
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens?
+      description: Include the settings (channel, waveform, frequency, amplitude, offset, modulation …).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements, scope screenshots, sniffer captures
+      description: A capture of the SPI sniffer (`docs/sniffer.md`) helps a lot for interface problems.

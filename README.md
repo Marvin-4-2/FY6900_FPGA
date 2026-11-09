@@ -123,9 +123,12 @@ builds a bitstream identical to [`release/fy6900_fpga_v0.18.rbf`](release). Test
 ## Contributing
 
 * **Flash dump fingerprints:** please report the output of `tools/fy6900_flash.py info` with
-  your board revisions – especially from units where the stock bitstream works
-  ([known-bitstreams.md](docs/known-bitstreams.md)). Do not publish complete dumps.
-* **Test reports** from other units, firmware versions and models.
+  your board revisions using the issue template **"Bitstream report"** – especially from units
+  where the stock bitstream works ([known-bitstreams.md](docs/known-bitstreams.md)). Do not
+  publish complete dumps.
+* **Bugs:** issue template **"Bug report"**.
+* **Questions, test reports and experiences** from other units, firmware versions and models:
+  [Discussions](https://github.com/Marvin-4-2/FY6900_FPGA/discussions).
 * **Implementations** of the [roadmap](#roadmap) items – please run the testbenches
   (`fpga/sim/run_all.sh`) and check the timing summary before opening a pull request.
 

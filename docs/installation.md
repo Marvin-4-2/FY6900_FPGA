@@ -10,6 +10,9 @@ touched. The procedure is reversible as long as you keep the backup of your flas
 > continue if you can restore the original flash (step 2). This project is not affiliated
 > with FeelTech/FeelElec.
 
+> **Tip:** a USB power bank instead of a USB power supply keeps the unit completely
+> isolated – no mains earth and no ground loop through the PC and the USB-Blaster.
+
 ## What you need
 
 * An FY6900 with **FPGA board V2.1** (printed on the board) – see [Compatibility](#compatibility)
@@ -18,7 +21,8 @@ touched. The procedure is reversible as long as you keep the backup of your flas
   "Quartus Prime Programmer and Tools" or a full Quartus Prime Lite installation. It includes
   `quartus_cpf`, which the tool below needs.
 * **Python 3.7** or newer
-* A **USB power supply** (5 V) to power the open unit through its rear USB port
+* A **USB power supply** (5 V) or a USB power bank to power the open unit through its rear
+  USB port
 * Optionally a 3.3 V SPI flash programmer (e.g. CH341A) for the backup
 
 ## 1. Open the unit and find the programming header

@@ -6,9 +6,13 @@ page explains how it was reached and why some design decisions look the way they
 
 ## The starting point
 
-The unit (FY6900 60 MHz, FPGA board V2.1, front panel V2.2) arrived with a dead STM32. After
-the STM32 firmware was restored (versions 1.4.2 and later 1.8.0 were used), the user
-interface worked again – but **neither channel produced a waveform**. Only the offset
+The unit (FY6900 60 MHz, FPGA board V2.1, front panel V2.2) arrived with a dead STM32. The
+front panel was brought back to life with the tools of **gamerpaddy** – his firmware update
+script [`updateFW.py`](../third_party/gamerpaddy) and his
+[custom front panel firmware](https://github.com/gamerpaddy/fy6900-customfirmware) project
+(see [Acknowledgements](../README.md#acknowledgements)). After the STM32 firmware was
+restored (versions 1.4.2 and later 1.8.0 were used), the user interface worked again – but
+**neither channel produced a waveform**. Only the offset
 changed when settings were changed.
 
 Measurements with the stock firmware and the stock bitstream showed:

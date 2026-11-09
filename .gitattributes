@@ -1,0 +1,2 @@
+# Third-party files are kept byte-identical to the originals (no line-ending conversion).
+third_party/** -text

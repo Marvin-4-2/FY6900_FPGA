@@ -80,6 +80,7 @@ The 40/50 MHz models share the hardware family but were not tested.
 | [`tools/sim_edge_interp.py`](tools/sim_edge_interp.py) | model of the square-wave edge interpolation |
 | [`sniffer/`](sniffer) | Raspberry Pi Pico SPI sniffer for the STM32 ↔ FPGA bus |
 | [`release/`](release) | prebuilt bitstream with checksums |
+| [`third_party/gamerpaddy/`](third_party/gamerpaddy) | `updateFW.py` by gamerpaddy: front panel firmware update over USB (included with permission, own terms) |
 | [`docs/`](docs) | documentation (see below) |
 
 ## Documentation
@@ -133,6 +134,17 @@ builds a bitstream identical to [`release/fy6900_fpga_v0.18.rbf`](release). Test
 * **Implementations** of the [roadmap](#roadmap) items – please run the testbenches
   (`fpga/sim/run_all.sh`) and check the timing summary before opening a pull request.
 
+## Acknowledgements
+
+Many thanks to **gamerpaddy**, whose work made this project a lot easier to start: his
+firmware update script [`updateFW.py`](third_party/gamerpaddy) (originally posted in the
+EEVblog forum topic
+["FeelElec New Arrival FY-6900 Signal Generator"](https://www.eevblog.com/forum/testgear/re-feelelec-new-arrival-fy-6900-signal-generator/)
+and included here with his permission) and his
+[custom front panel firmware](https://github.com/gamerpaddy/fy6900-customfirmware)
+resurrected the dead front panel of the test unit – without a working front panel, none of
+the work on the FPGA side would have been possible.
+
 ## Disclaimer
 
 This is an independent project, not affiliated with or endorsed by FeelTech/FeelElec.
@@ -153,4 +165,6 @@ must make the complete corresponding source available under the same licence.
 
 Source location: <https://github.com/Marvin-4-2/FY6900_FPGA>
 
-Every source file carries the SPDX identifier `CERN-OHL-S-2.0`.
+Every source file of this project carries the SPDX identifier `CERN-OHL-S-2.0`. Files in
+[`third_party/`](third_party) are not covered by this licence; they keep the terms of their
+authors (see the README in each folder).

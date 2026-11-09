@@ -97,7 +97,7 @@ The 40/50 MHz models share the hardware family but were not tested.
 | [simulation.md](docs/simulation.md) | building, testbenches |
 | [sniffer.md](docs/sniffer.md) | SPI sniffer |
 | [known-bitstreams.md](docs/known-bitstreams.md) | bitstream fingerprints, call for dumps |
-| [history.md](docs/history.md) | how the project came about, and why the stock bitstream failed |
+| [history.md](docs/history.md) | how the project came about, why the stock bitstream failed, and the project in numbers |
 
 ## Building from source
 

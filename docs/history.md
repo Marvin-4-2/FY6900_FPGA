@@ -128,3 +128,32 @@ Two explanations remain:
 
 A flash dump of a **working** FY6900 with FPGA board V2.1 would settle it – see
 [known-bitstreams.md](known-bitstreams.md).
+
+## The project in numbers
+
+The whole project – from the first look at the flash dump to the published repository – ran
+as one long session with the AI coding assistant Claude Code. The assistant analysed the
+firmware, wrote the FPGA design, the testbenches, the tools, the sniffer and this
+documentation. All work on the real unit was done by hand at the bench: measuring, tracing
+the board, flashing, sniffing and testing every version.
+
+| | |
+|---|---|
+| Duration | 4–9 November 2026, 13 sittings, about **26 active hours** |
+| … of which the assistant was working | about 5.6 hours; the rest was measuring, flashing, testing and reading |
+| Conversation | 257 messages from the developer, 1,102 assistant steps, 975 tool calls |
+| Test bitstreams | **30** (v0.2–v0.18 including variants) from 58 Quartus compiles |
+| Simulation runs | 25 |
+| Sniffer firmware builds | 43 |
+| Python script runs (analysis, flash images, models) | about 340 |
+| Tokens | about 500 million re-read, 7.5 million stored, 1.5 million written |
+| Largest conversation | about 970,000 tokens – it had to be summarised three times |
+| Result (v0.18) | 1,260 lines of Verilog, 464 lines of testbenches, 382 lines of Python, 312 lines of sniffer code, about 12,600 words of documentation |
+
+Writing was the small part: before every step the assistant re-reads the whole
+conversation so far. Weighted by cost (re-reading about 0.1×, storing 2×, writing 5×), the
+project came to about 72 million "effective" tokens. About half of that was the assistant
+re-reading its own earlier reasoning, a quarter the output of builds, simulations and
+scripts, and a sixth its fixed instructions. The times were estimated from the message
+timestamps (pauses of more than 45 minutes count as breaks), so bench work between two
+messages counts as active time.

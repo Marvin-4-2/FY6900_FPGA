@@ -1,0 +1,40 @@
+# Quartus build output
+fpga/db/
+fpga/incremental_db/
+fpga/output_files/
+fpga/*.rpt
+fpga/*.summary
+fpga/*.smsg
+fpga/*.done
+fpga/*.jdi
+fpga/*.jditmp
+fpga/*.pin
+fpga/*.sld
+fpga/*.qws
+fpga/*.sof
+fpga/*.rbf
+fpga/*.cdf
+fpga/greybox_tmp/
+
+# Simulation (Questa / ModelSim)
+work/
+fpga/work/
+transcript
+*.wlf
+vsim.wlf
+modelsim.ini
+
+# PlatformIO
+sniffer/.pio/
+sniffer/.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Flash images and programming files: never commit dumps of a unit
+# (they contain the manufacturer's data and unit-specific content)
+*.bin
+*.BIN
+*.pof
+*.hexout

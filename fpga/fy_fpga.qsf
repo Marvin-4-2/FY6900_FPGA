@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: CERN-OHL-S-2.0
+# Copyright 2026 The FY6900_FPGA contributors
+# Licensed under the CERN Open Hardware Licence Version 2 - Strongly Reciprocal (see LICENSE).
+# Source location: https://github.com/Marvin-4-2/FY6900_FPGA
+# =====================================================================================
+# FY6900 replacement FPGA - Quartus settings and pin assignments
+# Device: EP4CE6E22C8N (Cyclone IV E, EQFP-144), FPGA board V2.1
+# Configuration: Active Serial from the W25Q16 SPI flash (EPCS16 compatible)
+# Pin table with all 144 pins: docs/pinout.csv
+# =====================================================================================
+
+set_global_assignment -name FAMILY "Cyclone IV E"
+set_global_assignment -name DEVICE EP4CE6E22C8
+set_global_assignment -name TOP_LEVEL_ENTITY fy_fpga
+set_global_assignment -name VERILOG_FILE fy_fpga.v
+set_global_assignment -name VERILOG_FILE freq_counter.v
+set_global_assignment -name SDC_FILE fy_fpga.sdc
+
+set_global_assignment -name STRATIX_CONFIGURATION_DEVICE EPCS16
+set_global_assignment -name GENERATE_RBF_FILE ON
+set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION OFF
+# Unused pins stay inputs without pull-up (all 25 unused I/Os are unconnected on the board)
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS_WEAK_PULLUP "AS INPUT TRI-STATED"
+
+# Clock: 10 MHz TCXO
+set_location_assignment PIN_23 -to clk10
+
+# SPI from the STM32 (front panel connector)
+set_location_assignment PIN_30 -to spi_mosi
+set_location_assignment PIN_31 -to spi_miso
+set_location_assignment PIN_32 -to spi_sck
+set_location_assignment PIN_33 -to spi_cs_n
+set_location_assignment PIN_34 -to spi_regsel
+
+# DAC-1412 channel 1 (datasheet: B1 = MSB = pin 70 ... B14 = LSB = pin 52)
+set_location_assignment PIN_72 -to dac_clk
+set_location_assignment PIN_70 -to dac_d[13]
+set_location_assignment PIN_69 -to dac_d[12]
+set_location_assignment PIN_68 -to dac_d[11]
+set_location_assignment PIN_67 -to dac_d[10]
+set_location_assignment PIN_66 -to dac_d[9]
+set_location_assignment PIN_65 -to dac_d[8]
+set_location_assignment PIN_64 -to dac_d[7]
+set_location_assignment PIN_60 -to dac_d[6]
+set_location_assignment PIN_59 -to dac_d[5]
+set_location_assignment PIN_58 -to dac_d[4]
+set_location_assignment PIN_55 -to dac_d[3]
+set_location_assignment PIN_54 -to dac_d[2]
+set_location_assignment PIN_53 -to dac_d[1]
+set_location_assignment PIN_52 -to dac_d[0]
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to dac_d[*]
+
+# MCP4822 channel 1
+set_location_assignment PIN_74 -to mcp_ldac_n
+set_location_assignment PIN_75 -to mcp_sdi
+set_location_assignment PIN_76 -to mcp_sck
+set_location_assignment PIN_77 -to mcp_cs_n
+
+# Range relays CH1
+set_location_assignment PIN_44 -to rly_ch1_big
+set_location_assignment PIN_43 -to rly_ch1_small
+
+# DAC-1412 channel 2 (bit 13 = MSB = pin 128, next to the clock pin 129)
+set_location_assignment PIN_129 -to dac2_clk
+set_location_assignment PIN_128 -to dac2_d[13]
+set_location_assignment PIN_127 -to dac2_d[12]
+set_location_assignment PIN_126 -to dac2_d[11]
+set_location_assignment PIN_125 -to dac2_d[10]
+set_location_assignment PIN_124 -to dac2_d[9]
+set_location_assignment PIN_121 -to dac2_d[8]
+set_location_assignment PIN_120 -to dac2_d[7]
+set_location_assignment PIN_119 -to dac2_d[6]
+set_location_assignment PIN_115 -to dac2_d[5]
+set_location_assignment PIN_114 -to dac2_d[4]
+set_location_assignment PIN_113 -to dac2_d[3]
+set_location_assignment PIN_112 -to dac2_d[2]
+set_location_assignment PIN_111 -to dac2_d[1]
+set_location_assignment PIN_110 -to dac2_d[0]
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to dac2_d[*]
+
+# MCP4822 channel 2
+set_location_assignment PIN_103 -to mcp2_ldac_n
+set_location_assignment PIN_104 -to mcp2_sdi
+set_location_assignment PIN_105 -to mcp2_sck
+set_location_assignment PIN_106 -to mcp2_cs_n
+
+# Range relays CH2
+set_location_assignment PIN_132 -to rly_ch2_big
+set_location_assignment PIN_133 -to rly_ch2_small
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to rly_*
+
+# SPI flash W25Q16 on the configuration pins (regular I/O after configuration)
+set_location_assignment PIN_12 -to fl_clk
+set_location_assignment PIN_13 -to fl_miso
+set_location_assignment PIN_6  -to fl_mosi
+set_location_assignment PIN_8  -to fl_cs_n
+set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_DATA1_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_FLASH_NCE_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_DCLK_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to fl_*
+
+# I/O standard (all banks are supplied with 3.3 V)
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to clk10
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to spi_*
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to dac_*
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to mcp_*
+
+set_global_assignment -name LAST_QUARTUS_VERSION "25.1std.0 Lite Edition"
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to dac2_*
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to mcp2_*
+
+# CH2: softer data edges (crosstalk / ground bounce onto the DAC clock pin 129)
+set_instance_assignment -name CURRENT_STRENGTH_NEW "4MA" -to dac2_d[*]
+
+# Counter inputs: Counter BNC (pin 135) and Trig IN (pin 144, via 74HC245)
+set_location_assignment PIN_135 -to cnt_in
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to cnt_in
+set_location_assignment PIN_144 -to trig_in
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to trig_in
+set_instance_assignment -name GLOBAL_SIGNAL "GLOBAL CLOCK" -to cnt_src
+
+# TTL outputs rear panel (74HC245): A = CH1 0 deg, B = CH1 180 deg, C = CH2 0 deg, D = CH2 180 deg
+set_location_assignment PIN_137 -to ttl_a
+set_location_assignment PIN_138 -to ttl_b
+set_location_assignment PIN_141 -to ttl_c
+set_location_assignment PIN_142 -to ttl_d
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ttl_*
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to ttl_*
+# Sync OUT (BNC rear panel, 74HC245)
+set_location_assignment PIN_136 -to sync_out
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sync_out
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sync_out
+# Sync IN (BNC rear panel) - input only
+set_location_assignment PIN_143 -to sync_in
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sync_in

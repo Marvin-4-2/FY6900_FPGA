@@ -54,7 +54,8 @@ the selected waveforms from the SPI flash into its wave RAMs and generates both 
 3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin`
 4. Convert it: `python tools/fy6900_flash.py pof patched.bin patched.pof`
 5. Program `patched.pof` with a USB-Blaster through the 10-pin header ("Active Serial
-   Programming", EPCS16) while the generator is switched on.
+   Programming", EPCS16). Power the open unit from its rear USB port with a USB power supply
+   and leave the mains cable unplugged.
 
 The full procedure, including how to restore the original, is in
 **[docs/installation.md](docs/installation.md)**.
@@ -136,7 +137,8 @@ builds a bitstream identical to [`release/fy6900_fpga_v0.18.rbf`](release). Test
 
 This is an independent project, not affiliated with or endorsed by FeelTech/FeelElec.
 FY6900 is a product name of its manufacturer. Use at your own risk: the generator has to be
-opened and programmed while it is switched on. The repository contains no firmware,
+opened and programmed while it is powered – use a USB power supply on the rear USB port with
+the mains cable unplugged. The repository contains no firmware,
 bitstream or data of the manufacturer; it only contains interface information obtained
 for interoperability and an independently written FPGA design.
 

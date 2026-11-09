@@ -78,7 +78,7 @@ specified up to 125 MSPS; the original design ran its DDS at 250 MHz (reference 
 | TTL Port A / B (pin header) | 137 / 138 | CH1 0° / 180° (74HC245, 3.3 V levels) |
 | TTL Port C / D (pin header) | 141 / 142 | CH2 0° / 180° |
 | VCO IN (BNC) | – | JRC4558 → front panel → STM32 ADC (0–5 V) |
-| USB | – | CH340 → STM32 UART (PC software) |
+| USB | – | CH340 → STM32 UART (PC software); a USB power supply here also powers the unit for programming with the case open |
 
 ## FPGA pin assignment
 
@@ -120,4 +120,6 @@ Standard Altera AS pinout, verified on the board:
 
 An Intel/Altera USB-Blaster programs the flash through this header in "Active Serial
 Programming" mode (see [installation.md](installation.md)). The USB-Blaster does not power
-the board – the generator has to be switched on.
+the board. With the case open, power the unit from the rear USB port with a USB power supply
+and leave the mains cable unplugged – that is enough for programming, and there is no mains
+voltage inside.

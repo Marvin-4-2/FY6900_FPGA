@@ -3,9 +3,12 @@
 This replaces the FPGA bitstream in the generator's SPI flash. The STM32 firmware is not
 touched. The procedure is reversible as long as you keep the backup of your flash.
 
-> **Warning.** You open a mains-powered device and program it while it is switched on. Keep
-> away from the mains section, work at your own risk, and only continue if you can restore
-> the original flash (step 2). This project is not affiliated with FeelTech/FeelElec.
+> **Warning.** You open a mains-powered device, and the flash is backed up and programmed
+> while the unit is powered. **Unplug the mains cable and power the unit from the USB port on
+> the back with a USB power supply** – that is enough for backing up and programming the
+> flash, and there is no mains voltage inside the open case. Work at your own risk and only
+> continue if you can restore the original flash (step 2). This project is not affiliated
+> with FeelTech/FeelElec.
 
 ## What you need
 
@@ -15,6 +18,7 @@ touched. The procedure is reversible as long as you keep the backup of your flas
   "Quartus Prime Programmer and Tools" or a full Quartus Prime Lite installation. It includes
   `quartus_cpf`, which the tool below needs.
 * **Python 3.7** or newer
+* A **USB power supply** (5 V) to power the open unit through its rear USB port
 * Optionally a 3.3 V SPI flash programmer (e.g. CH341A) for the backup
 
 ## 1. Open the unit and find the programming header
@@ -29,12 +33,13 @@ The flash contains the FPGA bitstream **and your waveforms**. Keep the backup �
 only way back to the original state.
 
 **Option A – SPI flash programmer:**
-1. Switch the generator on and pull **nCONFIG (header pin 5) to GND** through about 100 Ω.
+1. Power the unit (USB power supply on the rear USB port, mains cable unplugged) and pull
+   **nCONFIG (header pin 5) to GND** through about 100 Ω.
    This holds the FPGA in reset and releases the flash lines.
 2. Connect a **3.3 V** SPI programmer to the header: CLK → pin 1 (DCLK), MOSI → pin 9 (ASDO),
    MISO → pin 7 (DATA0), CS → pin 8 (nCS), GND → pin 2/10. Do **not** connect VCC while the
-   generator is on. (Alternatively use a SOIC-8 clip directly on the W25Q16 with the
-   generator switched off and the programmer supplying 3.3 V.)
+   unit is powered. (Alternatively use a SOIC-8 clip directly on the W25Q16 with the unit
+   unpowered and the programmer supplying 3.3 V.)
 3. Read the W25Q16 (2 MB) twice and compare both reads. Then release nCONFIG.
 
 **Option B – USB-Blaster (not yet tested on a real unit):**
@@ -73,14 +78,15 @@ It converts the `.pof` back and compares it with the image; it must report
 
 ## 6. Program
 
-1. Switch the generator on and plug the USB-Blaster cable onto the header.
+1. Power the unit (USB power supply on the rear USB port, mains cable unplugged) and plug the
+   USB-Blaster cable onto the header.
 2. Quartus Programmer → **Hardware Setup**: USB-Blaster; **Mode: Active Serial Programming**.
 3. **Add File** `patched.pof` (device EPCS16), tick **Program/Configure** and **Verify**.
 4. **Start**. The USB-Blaster handles nCONFIG itself; do not pull it manually.
-5. Switch the generator off and on again.
+5. Disconnect the USB power supply and the USB-Blaster, close the case and power the unit
+   normally.
 
-The USB-Blaster does not power the board – the generator must be switched on while
-programming.
+The USB-Blaster does not power the board – the unit must be powered while programming.
 
 ## 7. Check
 

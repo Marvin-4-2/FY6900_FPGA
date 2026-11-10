@@ -13,8 +13,9 @@ bitstream area and keeps everything else from YOUR OWN flash dump.
 
 Sub-commands
   info    <dump.bin>                         show size and identify the bitstream (SHA-256)
-  patch   <dump.bin> <bitstream.rbf> <out.bin> [--force]
-                                             insert the bitstream (.rbf) into a copy of the dump
+  patch   <dump.bin> <bitstream.rbf> <out.bin> --board REV [--force]
+                                             insert the bitstream (.rbf) into a copy of the dump;
+                                             REV = revision printed on the FPGA board, e.g. V2.1
   pof     <image.bin> <out.pof> [--cpf PATH] convert a 2 MB image into a .pof for the
                                              Quartus Programmer (USB-Blaster, Active Serial),
                                              including an automatic read-back check
@@ -22,10 +23,17 @@ Sub-commands
                                              (e.g. to inspect or archive a .pof)
 
 Safety
-  "patch" refuses to work on a dump whose bitstream area is unknown. A known stock bitstream
-  means the board has the pin assignment this project was made for. Use --force only after
-  checking the pin assignment of your board yourself (docs/pinout.csv) - a wrong pin
-  assignment can make the FPGA drive against other outputs on the board.
+  What decides compatibility is the FPGA board, not the content of the flash: the flash can
+  hold any image (the test unit carried the known stock bitstream although that bitstream
+  never worked on it). "patch" therefore asks for the board revision:
+    V2.1   tested with this project
+    V1.9   not yet tested, very likely compatible
+    other  refused - use --force only after checking the pin assignment of your board
+           yourself (docs/pinout.csv); a wrong pin assignment can make the FPGA drive against
+           other outputs on the board.
+  The bitstream in the dump is identified as a second check. An unknown bitstream is accepted
+  (a working V2.1 unit probably has a newer stock bitstream - please report it); a dump that
+  contains no Cyclone IV bitstream at all is refused, because it is most likely a bad read.
 
 Requirements: Python 3.7+, for pof/unpof the quartus_cpf tool of Intel Quartus Prime
 (any edition with Cyclone IV support). It is searched in --cpf, $QUARTUS_ROOTDIR/bin64,
@@ -47,11 +55,26 @@ SYNC_FLASH     = 0x56       # first non-0xFF byte of a Cyclone IV bitstream in f
 # board revisions of your unit (see README, "Contributing").
 KNOWN_BITSTREAMS = {
     "89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5":
-        ("stock", "FeelTech stock bitstream (FY6900 60 MHz, FPGA boards V1.9 and V2.1; ID register 0x3A = 0x10)"),
+        ("stock", "FeelTech stock bitstream (FY6900 60 MHz, seen on FPGA boards V1.9 and V2.1; ID register 0x3A = 0x10)"),
     # bitstreams of this project (re-patching an already patched unit is allowed)
     "f15cbb2f2eaa7d125e04360a7c7ef1715425b635f97692310a4733ebb36f2a4f":
         ("project", "FY6900_FPGA v0.18 (this project)"),
 }
+
+# FPGA board revisions (as printed on the FPGA board) -> (status, description).
+# Only these are accepted by "patch" without --force (see docs/installation.md, Compatibility).
+BOARDS = {
+    "V2.1": ("tested", "tested with this project"),
+    "V1.9": ("likely", "not yet tested with this project, very likely compatible (the identical "
+                       "stock bitstream works there and uses the same output pins as this project "
+                       "on V2.1) - please report the result"),
+}
+
+
+def norm_board(rev):
+    """Normalise a board revision as typed by the user: '2.1', 'v2.1', 'V2.1' -> 'V2.1'."""
+    rev = rev.strip().upper()
+    return rev if rev.startswith("V") else "V" + rev
 
 
 def rev8(b):
@@ -84,6 +107,16 @@ def identify(data):
     return h, kind, desc
 
 
+def has_bitstream(data):
+    """True if the bitstream area starts like a Cyclone IV bitstream in flash byte order
+    (0xFF padding followed by the sync byte). False usually means an empty or bad read."""
+    area = data[:BITSTREAM_AREA]
+    i = 0
+    while i < len(area) and area[i] == 0xFF:
+        i += 1
+    return i < len(area) and area[i] == SYNC_FLASH
+
+
 def rbf_to_flash(rbf):
     """Convert a Quartus .rbf into flash byte order (bit-reversed) and check the sync byte."""
     if len(rbf) > BITSTREAM_AREA:
@@ -110,20 +143,41 @@ def cmd_info(args):
     print("bitstream SHA-256 (flash 0x000000..0x%06x): %s" % (BITSTREAM_AREA, h))
     print("identified as:   %s" % desc)
     if kind == "unknown":
-        print("\nThis bitstream is not in the list of known bitstreams. Please report the SHA-256")
-        print("together with the board revisions of your unit (see README, Contributing).")
+        if has_bitstream(data):
+            print("\nThis bitstream is not in the list of known bitstreams. Please report the SHA-256")
+            print("together with the board revisions of your unit (see README, Contributing).")
+        else:
+            print("\nThe bitstream area does not contain a Cyclone IV bitstream - most likely an")
+            print("empty or bad read. Read the flash again (twice) and compare both reads.")
+    print("\nNote: this identifies the content of the flash, not the board. Compatibility depends")
+    print("on the revision printed on the FPGA board (V2.1 tested, V1.9 very likely compatible).")
 
 
 def cmd_patch(args):
     dump = load_image(args.dump)
     h, kind, desc = identify(dump)
+    board = norm_board(args.board)
+    status, bdesc = BOARDS.get(board, ("unknown", "unknown revision"))
+    print("FPGA board:      %s - %s" % (board, bdesc))
     print("dump bitstream:  %s" % desc)
-    if kind == "unknown" and not args.force:
-        sys.exit("\nrefusing to patch: the bitstream in this dump is unknown (SHA-256 %s).\n"
-                 "Check the pin assignment of your board against docs/pinout.csv first,\n"
-                 "then run again with --force." % h)
-    if kind == "unknown":
-        print("warning: unknown bitstream, continuing because of --force")
+    # 1. the board decides
+    if status == "unknown":
+        if not args.force:
+            sys.exit("\nrefusing to patch: FPGA board %s is not known to be compatible.\n"
+                     "This project was tested on V2.1 (V1.9 very likely compatible). Compare the\n"
+                     "pin assignment of your board with docs/pinout.csv first, then run again with\n"
+                     "--force - and please report the result." % board)
+        print("warning: unknown board revision, continuing because of --force")
+    # 2. the dump must be plausible
+    if not has_bitstream(dump):
+        if not args.force:
+            sys.exit("\nrefusing to patch: the bitstream area of this dump contains no Cyclone IV\n"
+                     "bitstream - most likely an empty or bad read. Read the flash again (twice)\n"
+                     "and compare both reads.")
+        print("warning: no Cyclone IV bitstream in the dump, continuing because of --force")
+    elif kind == "unknown":
+        print("note:            unknown bitstream (SHA-256 %s) - please report it\n"
+              "                 with your board revisions (docs/known-bitstreams.md)" % h)
     rbf = open(args.rbf, "rb").read()
     flash = rbf_to_flash(rbf)
     img = bytearray(dump)
@@ -275,7 +329,10 @@ def main():
     p.set_defaults(func=cmd_info)
     p = sub.add_parser("patch", help="insert a bitstream (.rbf) into a copy of your flash dump")
     p.add_argument("dump"); p.add_argument("rbf"); p.add_argument("out")
-    p.add_argument("--force", action="store_true", help="also patch dumps with an unknown bitstream")
+    p.add_argument("--board", required=True, metavar="REV",
+                   help="revision printed on the FPGA board, e.g. V2.1")
+    p.add_argument("--force", action="store_true",
+                   help="also patch for an unknown board revision or a dump without a bitstream")
     p.set_defaults(func=cmd_patch)
     p = sub.add_parser("pof", help="convert a 2 MB image into a .pof (USB-Blaster, Active Serial)")
     p.add_argument("image"); p.add_argument("pof")

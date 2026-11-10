@@ -8,9 +8,12 @@
 The `.rbf` is not programmed directly: insert it into a backup of **your own** flash with
 
 ```
-python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin
+python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin --board V2.1
 python tools/fy6900_flash.py pof patched.bin patched.pof
 ```
+
+(`--board` is the revision printed on your FPGA board – see
+[Compatibility](../docs/installation.md#compatibility).)
 
 and program `patched.pof` as described in [docs/installation.md](../docs/installation.md).
 After patching, the bitstream area of the image (flash 0x000000–0x059FFF) has the SHA-256

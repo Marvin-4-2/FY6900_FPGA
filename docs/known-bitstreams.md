@@ -1,8 +1,14 @@
 # Known bitstreams
 
 `tools/fy6900_flash.py info <dump>` prints the SHA-256 of the bitstream area of a W25Q16
-dump (flash 0x000000–0x059FFF). The `patch` command only accepts the bitstreams listed here
-(the list is also in the tool).
+dump (flash 0x000000–0x059FFF) and identifies it with the list below (the list is also in the
+tool).
+
+This identifies **what is in the flash, not the board**: a flash can contain an image from
+another unit – my V2.1 unit carried the stock bitstream below although it never worked on
+it. Compatibility is decided by the FPGA board revision (see
+[installation.md](installation.md#compatibility)); the `patch` command asks for it and
+accepts unknown bitstreams on known boards.
 
 | SHA-256 of flash 0x000000–0x059FFF | Bitstream | Model name | FPGA board revision | Front panel revision | Front panel firmware version | Notes |
 |---|---|---|---|---|---|---|

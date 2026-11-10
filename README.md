@@ -48,10 +48,12 @@ the selected waveforms from the SPI flash into its wave RAMs and generates both 
 
 ## Quick start
 
-1. Back up the W25Q16 flash of your unit (2 MB) and keep the backup.
-2. Check it: `python tools/fy6900_flash.py info backup.bin` – it must report the known stock
-   bitstream.
-3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin`
+1. Check the revision printed on the FPGA board – V2.1 is tested, V1.9 very likely works
+   (see [Compatibility](#compatibility)). Back up the W25Q16 flash of your unit (2 MB) and
+   keep the backup.
+2. Check the dump: `python tools/fy6900_flash.py info backup.bin`
+3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin --board V2.1`
+   (your board revision)
 4. Convert it: `python tools/fy6900_flash.py pof patched.bin patched.pof`
 5. Program `patched.pof` with a USB-Blaster through the 10-pin header ("Active Serial
    Programming", EPCS16). Power the open unit from its rear USB port with a USB power supply
@@ -63,15 +65,21 @@ The full procedure, including how to restore the original, is in
 ## Compatibility
 
 The design only works on boards with exactly this FPGA pin assignment
-([docs/pinout.csv](docs/pinout.csv)). The stock bitstream in the flash is a good fingerprint:
-several FY6900 dumps from different sources contain the identical stock bitstream, and the
-patch tool refuses dumps with an unknown one. A wrong pin assignment can make the FPGA drive
-against other outputs on the board. See [docs/known-bitstreams.md](docs/known-bitstreams.md).
+([docs/pinout.csv](docs/pinout.csv)); a wrong pin assignment can make the FPGA drive against
+other outputs on the board. What decides it is the **revision printed on the FPGA board** –
+the patch tool asks for it (`--board`) and refuses other revisions unless forced.
 
 | FPGA board | Stock bitstream | This project |
 |---|---|---|
 | V2.1 | identical; never starts its DDS on the test unit | **tested**, all functions |
-| V1.9 | identical; works ([report](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) | not yet tested – the identical stock bitstream makes the same pin assignment very likely |
+| V1.9 | identical; works ([report](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) | not yet tested – very likely compatible |
+
+The bitstream in a flash dump is not proof of compatibility – the flash can contain an image
+from another unit, as on the V2.1 test unit, where the stock bitstream never worked. But it
+is a useful hint: on V2.1 the stock bitstream drives the outputs on exactly the pins this
+project uses, so it was made for this pin assignment. See
+[docs/installation.md](docs/installation.md#compatibility) and
+[docs/known-bitstreams.md](docs/known-bitstreams.md).
 
 The 40/50 MHz models share the hardware family but were not tested.
 

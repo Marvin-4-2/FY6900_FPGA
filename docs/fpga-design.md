@@ -213,8 +213,9 @@ Implementation notes:
   USB-Blaster or an SPI programmer.
 * **Refuse addresses at or above 0x200000** instead of passing them to the flash. Firmware
   1.8.0 places the custom waveform slots at 0x1A0000–0x29FFFF (a layout for a 4 MB flash);
-  on the 2 MB W25Q16 slots 25–64 would wrap around into the bitstream and the built-in
-  waveforms – the likely cause of the reported flash corruption with the stock bitstream
+  on the 2 MB W25Q16 slots 25–64 would wrap around into the bitstream (slots 25–47) and the
+  built-in waveforms of 1.4.2 (slots 48–64) – the likely cause of the reported flash
+  corruption with the stock bitstream
   (see [firmware-notes.md](firmware-notes.md#custom-waveform-upload)). Still report busy and
   ready as usual, so that a refused upload ends normally instead of hanging the firmware.
 * Capture an upload from the PC software with the [sniffer](sniffer.md) (mode `a`) first and

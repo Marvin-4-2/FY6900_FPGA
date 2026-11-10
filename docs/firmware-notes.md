@@ -138,6 +138,11 @@ always the case, because the ID is stored as `(value & 0xFF) | 0xFB6900` (see th
 sequence above). This layout needs a flash of at least 4 MB (for example a W25Q32); it does
 not fit the 2 MB W25Q16 of the FY6900 described here.
 
+The built-in waveforms are in different places, too (read routine 0x0800F3A4 in 1.8.0):
+1.4.2 loads them from 0x60000–0xDFFFF, 1.8.0 from 0x100000–0x17FFFF. In the stock flash that
+second area holds copies of the 0x60000 set (it is the area of 1.4.2's custom slots 1–32),
+which is why the built-in waveforms also work with 1.8.0. 1.8.0 never reads 0x60000–0xDFFFF.
+
 The W25Q16 ignores the address bits above 2 MB, so an address of 0x200000 or more wraps
 around to the start of the chip (expected from the device; not yet verified on a unit):
 
@@ -145,12 +150,14 @@ around to the start of the chip (expected from the device; not yet verified on a
 |---|---|---|---|
 | 1–24 | 0x1A0000–0x1FFFFF | same | slots 41–64 of the 1.4.2 layout – probably harmless |
 | **25–47** | 0x200000–0x25BFFF | 0x000000–0x05BFFF | **erases and overwrites the FPGA bitstream** |
-| **48–64** | 0x25C000–0x29FFFF | 0x05C000–0x09FFFF | **overwrites the first built-in waveforms** |
+| **48–64** | 0x25C000–0x29FFFF | 0x05C000–0x09FFFF | **overwrites the first 16 built-in waveforms of 1.4.2** (0x60000–0x9FFFF); 1.8.0 does not use them |
 
 The generator keeps working until it is switched off, because the FPGA is already
-configured; after the next power-on the FPGA does not start (slots 25–47) or built-in
-waveforms are wrong (slots 48–64). This matches the report that saving a custom waveform with
-1.8.0 corrupts the flash ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).
+configured; after the next power-on the FPGA does not start (slots 25–47). Slots 48–64 even
+seem to work with 1.8.0 – it reads the slot back through the same wrapped address – but they
+destroy the built-in waveforms of 1.4.2, which shows only after going back to 1.4.2. This
+matches the report that saving a custom waveform with 1.8.0 corrupts the flash
+([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).
 
 **With firmware 1.8.0 and the stock bitstream, upload custom waveforms only to slots 1–24**
 (or upload them with 1.4.2), and keep a backup of the flash. This project's bitstream
@@ -170,7 +177,7 @@ on register 0x16 that 1.4.2 sends before its second write loop.
 | reg 0x3A at power-on | read and stored | polled for 0xFB69 (up to 4–5 s) |
 | MANU source | count written immediately | count 0 when selected, count written by OK |
 | reg 0x05 | 8 bits (normal value 0xC0) | 9 bits (normal value 0x1C0), bits 8/7 = output on |
-| waveform flash addresses | 0x60000 / 0x100000 areas | partly different areas – irrelevant for the FPGA, it loads from the address it is given |
+| built-in waveforms | 0x60000–0xDFFFF | 0x100000–0x17FFFF (copies in the stock flash) – irrelevant for the FPGA, it loads from the address it is given |
 | custom waveform slots | 0x100000–0x1FFFFF | 0x1A0000–0x29FFFF – beyond the 2 MB flash, see [above](#custom-waveform-upload) |
 
 Everything else – register numbers, scaling, modulation, counter – is identical.

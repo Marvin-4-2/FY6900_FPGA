@@ -58,7 +58,7 @@ python tools/fy6900_flash.py info backup.bin
 ```
 
 The tool shows the SHA-256 of the bitstream area. Continue only if it reports
-**"FeelTech stock bitstream (FY6900 60 MHz, FPGA board V2.1 …)"** or a bitstream of this
+**"FeelTech stock bitstream (FY6900 60 MHz, FPGA boards V1.9 and V2.1 …)"** or a bitstream of this
 project. An unknown bitstream means your board may have a different pin assignment – see
 [Compatibility](#compatibility) and please report it.
 

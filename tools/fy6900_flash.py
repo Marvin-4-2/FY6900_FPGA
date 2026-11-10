@@ -47,7 +47,7 @@ SYNC_FLASH     = 0x56       # first non-0xFF byte of a Cyclone IV bitstream in f
 # board revisions of your unit (see README, "Contributing").
 KNOWN_BITSTREAMS = {
     "89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5":
-        ("stock", "FeelTech stock bitstream (FY6900 60 MHz, FPGA board V2.1; ID register 0x3A = 0x10)"),
+        ("stock", "FeelTech stock bitstream (FY6900 60 MHz, FPGA boards V1.9 and V2.1; ID register 0x3A = 0x10)"),
     # bitstreams of this project (re-patching an already patched unit is allowed)
     "f15cbb2f2eaa7d125e04360a7c7ef1715425b635f97692310a4733ebb36f2a4f":
         ("project", "FY6900_FPGA v0.18 (this project)"),

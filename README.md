@@ -68,6 +68,11 @@ several FY6900 dumps from different sources contain the identical stock bitstrea
 patch tool refuses dumps with an unknown one. A wrong pin assignment can make the FPGA drive
 against other outputs on the board. See [docs/known-bitstreams.md](docs/known-bitstreams.md).
 
+| FPGA board | Stock bitstream | This project |
+|---|---|---|
+| V2.1 | identical; never starts its DDS on the test unit | **tested**, all functions |
+| V1.9 | identical; works ([report](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) | not yet tested – the identical stock bitstream makes the same pin assignment very likely |
+
 The 40/50 MHz models share the hardware family but were not tested.
 
 ## Repository layout

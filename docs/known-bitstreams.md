@@ -26,10 +26,13 @@ It asks for:
 * model (40/50/60 MHz) and STM32 firmware version (shown at start-up)
 * whether the stock bitstream works on your unit
 
-This helps to answer two open questions: which board revisions share this pin assignment,
-and whether there is a newer stock bitstream (firmware 1.8.0 checks for an FPGA ID of
-0xFB69 in register 0x3A, which the stock bitstream above does not report – see
-[history.md](history.md#why-the-stock-bitstream-did-not-work)).
+This helps to answer two open questions: which board revisions share this pin assignment
+(so far V1.9 and V2.1), and what the stock bitstream of a **working V2.1 board** looks like.
+The stock bitstream above works on FPGA board V1.9 with firmware 1.4.2 and 1.8.0, but not
+on the V2.1 test unit, so V2.1 boards probably ship with a newer bitstream – most likely
+one that reports the FPGA ID 0xFB69 in register 0x3A that firmware 1.8.0 asks for (see
+[history.md](history.md#why-the-stock-bitstream-did-not-work)). A report from a working
+V2.1 unit is the most wanted one.
 
 Do not attach complete flash dumps to public issues – they contain FeelTech's waveform data;
 the SHA-256 is enough.

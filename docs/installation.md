@@ -15,7 +15,8 @@ touched. The procedure is reversible as long as you keep the backup of your flas
 
 ## What you need
 
-* An FY6900 with **FPGA board V2.1** (printed on the board) – see [Compatibility](#compatibility)
+* An FY6900 with **FPGA board V2.1** (printed on the board; V1.9 very likely works too) – see
+  [Compatibility](#compatibility)
 * An Intel/Altera **USB-Blaster** (clones work) with the 10-pin cable
 * **Intel Quartus Prime Programmer** with Cyclone IV support – either the stand-alone
   "Quartus Prime Programmer and Tools" or a full Quartus Prime Lite installation. It includes
@@ -118,7 +119,10 @@ project) with the new `.rbf`, create the `.pof` and program it.
 Tested on one unit: **FY6900 60 MHz, FPGA board V2.1, front panel board V2.2, STM32 firmware
 1.8.0** (1.4.2 also writes the same registers). Several FY6900 flash dumps from different
 sources contain the identical stock bitstream, which strongly suggests the same pin
-assignment. The `patch` command therefore refuses dumps with an unknown bitstream; `--force`
+assignment – among them a unit with **FPGA board V1.9** and front panel V1.9, where the stock
+bitstream works ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)). This project's
+bitstream has not been tested on V1.9 yet; if you try it, please report the result. The
+`patch` command refuses dumps with an unknown bitstream; `--force`
 overrides this – use it only after checking your board against [pinout.csv](pinout.csv).
 A wrong pin assignment can make the FPGA drive against other outputs on the board.
 

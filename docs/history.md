@@ -111,27 +111,37 @@ This was never proven. What is known:
   (bit-identical to a working test), the register traffic (correct with 1.4.2 and 1.8.0)
   and the flash content (identical to a reference dump after a repair of an interrupted
   waveform write).
+* **Also ruled out since the release: the bitstream itself and the firmware.** A user
+  reported the identical stock bitstream on an FY6900-60M with **FPGA board V1.9** and
+  front panel V1.9, where it works with both firmware 1.4.2 and 1.8.0
+  ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)). So the image is a working
+  FeelTech design, and the ID check of firmware 1.8.0 (it polls register 0x3A for 0xFB69,
+  this bitstream returns 0x10) only costs the 4–5 s start-up delay – it does not stop the
+  generator.
 * **Symptom:** the stock design ran (it switched relays, reacted to register writes and
   showed the first sample of the selected waveform), but its DDS never started and the DAC
   clock stayed off – an internal start condition was not met.
 
 Two explanations remain:
 
-1. **Most likely: the bitstream does not match the board revision or the firmware.**
-   Firmware 1.8.0 explicitly waits for an FPGA ID (0xFB69 in register 0x3A) that the
-   bitstream in the flash does not report (it returns 0x10), and it uses partly different
-   waveform flash areas. So a newer stock bitstream exists that is not in any of the dumps
-   available here. The unit arrived with a dead STM32; it is possible that an earlier repair
-   attempt had already put an older, publicly circulating image into the flash – which would
-   also explain why all available dumps contain the same bitstream. The older design might
-   depend on a detail that is different on board V2.1 and wait forever.
+1. **Most likely: the bitstream was made for older boards and does not work on board
+   V2.1.** On the V2.1 test unit it drives the relays and the DAC data lines on the same
+   pins as this project, so the outputs match – but something the design waits for before
+   it starts the DDS is different on V2.1, for example an input that is wired differently,
+   a changed component or a timing detail. FeelTech probably ships V2.1 boards with a newer
+   bitstream – that would be the one reporting the FPGA ID 0xFB69 that firmware 1.8.0 asks
+   for (1.8.0 also uses partly different waveform flash areas). No dump available here
+   contains it. The test unit arrived with a dead STM32; an earlier repair attempt may have
+   put the older, publicly circulating image into its flash – which would also explain why
+   all available dumps contain the same bitstream.
 2. **Less likely: a pairing check between STM32 and FPGA** (the challenge/response handshake).
    A bitstream that is identical in every unit cannot verify a response derived from each
    STM32's unique ID unless per-unit pairing data were stored in the flash, and none was
    found.
 
-A flash dump of a **working** FY6900 with FPGA board V2.1 would settle it – see
-[known-bitstreams.md](known-bitstreams.md).
+A flash dump of a **working** FY6900 with **FPGA board V2.1** would settle it: its
+bitstream would most likely be the newer one, and comparing the two designs would show what
+changed – see [known-bitstreams.md](known-bitstreams.md).
 
 ## The project in numbers
 

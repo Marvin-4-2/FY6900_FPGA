@@ -184,8 +184,9 @@ low.
 ## Future extension: flash writes
 
 The PC software uploads arbitrary waveforms to the STM32, which stores them in the SPI flash
-through the FPGA. The register sequence below was derived from the firmware (1.4.2) but has
-**not yet been confirmed with the sniffer**:
+through the FPGA. This design currently ignores these writes, so an upload neither stores
+nor damages anything. The register sequence below was derived from the firmware (1.4.2,
+identical in 1.8.0) but has **not yet been confirmed with the sniffer**:
 
 | Reg | Function (firmware view) |
 |---|---|
@@ -210,5 +211,11 @@ Implementation notes:
 * **Protect the bitstream area:** refuse erase and program commands below 0x05A000. A stray
   write there would leave the FPGA unconfigurable until the flash is reprogrammed with the
   USB-Blaster or an SPI programmer.
+* **Refuse addresses at or above 0x200000** instead of passing them to the flash. Firmware
+  1.8.0 places the custom waveform slots at 0x1A0000–0x29FFFF (a layout for a 4 MB flash);
+  on the 2 MB W25Q16 slots 25–64 would wrap around into the bitstream and the built-in
+  waveforms – the likely cause of the reported flash corruption with the stock bitstream
+  (see [firmware-notes.md](firmware-notes.md#custom-waveform-upload)). Still report busy and
+  ready as usual, so that a refused upload ends normally instead of hanging the firmware.
 * Capture an upload from the PC software with the [sniffer](sniffer.md) (mode `a`) first and
   compare it with the table above.

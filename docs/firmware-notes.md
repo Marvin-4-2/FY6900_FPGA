@@ -116,6 +116,53 @@ calibration menu changes X, see [calibration.md](calibration.md).
 The firmware sets mode 7 in reg 0x04 and the offset to the centre (0x7FF) for a channel that
 is switched off, and clears bit 8 (CH1) or bit 7 (CH2) in reg 0x05. No relay is switched.
 
+## Custom waveform upload
+
+The PC software uploads an arbitrary waveform with the UART command `DDS_WAVE<n>` (slot
+n = 1…64) followed by 16 KB of data. The firmware computes a flash address for the slot,
+checks it, erases four 4 KB sectors and programs the 16384 bytes through the FPGA (registers
+0x17, 0x11, 0x16, 0x14, 0x13, 0x15 – see
+[fpga-design.md](fpga-design.md#future-extension-flash-writes)). This is the only place where
+the firmware writes waveform data to the SPI flash.
+
+| | 1.4.2 | 1.8.0 |
+|---|---|---|
+| Command handler | 0x0801510C | 0x08015740 |
+| Slot address | 0x100000 + (n−1)·0x4000 | base + (n−1)·0x4000, base = 0x1A0000 |
+| Slots 1–64 | 0x100000–0x1FFFFF (upper half of the 2 MB W25Q16) | 0x1A0000–**0x29FFFF** |
+| Range check (save routine) | 0x5FFFE ≤ address ≤ 0x200000 (0x08016B14) | 0xFFFFE ≤ address ≤ 0x2A0000 (0x0801724C) |
+
+In 1.8.0 the base addresses are variables. At start-up (0x0801308C) the firmware sets them
+to 0xFC000, 0x1A0000 and 0x190000 if bits 19:16 of the stored FPGA ID are 0xB – which is
+always the case, because the ID is stored as `(value & 0xFF) | 0xFB6900` (see the power-on
+sequence above). This layout needs a flash of at least 4 MB (for example a W25Q32); it does
+not fit the 2 MB W25Q16 of the FY6900 described here.
+
+The W25Q16 ignores the address bits above 2 MB, so an address of 0x200000 or more wraps
+around to the start of the chip (expected from the device; not yet verified on a unit):
+
+| 1.8.0 slot | Address sent | Lands at | Effect |
+|---|---|---|---|
+| 1–24 | 0x1A0000–0x1FFFFF | same | slots 41–64 of the 1.4.2 layout – probably harmless |
+| **25–47** | 0x200000–0x25BFFF | 0x000000–0x05BFFF | **erases and overwrites the FPGA bitstream** |
+| **48–64** | 0x25C000–0x29FFFF | 0x05C000–0x09FFFF | **overwrites the first built-in waveforms** |
+
+The generator keeps working until it is switched off, because the FPGA is already
+configured; after the next power-on the FPGA does not start (slots 25–47) or built-in
+waveforms are wrong (slots 48–64). This matches the report that saving a custom waveform with
+1.8.0 corrupts the flash ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).
+
+**With firmware 1.8.0 and the stock bitstream, upload custom waveforms only to slots 1–24**
+(or upload them with 1.4.2), and keep a backup of the flash. This project's bitstream
+currently ignores flash writes, so with it an upload cannot damage the flash (but is not
+stored either).
+
+The only other routine that writes to the SPI flash (0x0800B900 in 1.8.0, 0x0800B680 in
+1.4.2) stores data derived from the STM32 unique ID. It only runs if the bytes 0xA5/0x5A are
+present at the start of a configuration block – at 0x190000 in 1.8.0, at 0xF0000 in 1.4.2 –
+which is not the case in the stock flash layout. In 1.8.0 this routine lacks one 1 → 0 pulse
+on register 0x16 that 1.4.2 sends before its second write loop.
+
 ## Differences 1.4.2 → 1.8.0 that matter for the FPGA
 
 | Topic | 1.4.2 | 1.8.0 |
@@ -124,5 +171,6 @@ is switched off, and clears bit 8 (CH1) or bit 7 (CH2) in reg 0x05. No relay is 
 | MANU source | count written immediately | count 0 when selected, count written by OK |
 | reg 0x05 | 8 bits (normal value 0xC0) | 9 bits (normal value 0x1C0), bits 8/7 = output on |
 | waveform flash addresses | 0x60000 / 0x100000 areas | partly different areas – irrelevant for the FPGA, it loads from the address it is given |
+| custom waveform slots | 0x100000–0x1FFFFF | 0x1A0000–0x29FFFF – beyond the 2 MB flash, see [above](#custom-waveform-upload) |
 
 Everything else – register numbers, scaling, modulation, counter – is identical.

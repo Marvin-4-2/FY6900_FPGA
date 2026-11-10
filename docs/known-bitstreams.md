@@ -8,7 +8,7 @@ dump (flash 0x000000–0x059FFF). The `patch` command only accepts the bitstream
 |---|---|---|---|---|---|---|
 | `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900-60M | V2.1 | V2.2 | 1.4.2, 1.8.0 | my unit: the stock bitstream never starts its DDS ([history.md](history.md#why-the-stock-bitstream-did-not-work)) |
 | `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900-60M | V1.9 | V1.9 | 1.4.2| stock bitstream works (both channels) |
-| `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900-60M | V1.9 | V1.9 | 1.8.0 | stock bitstream, saving a custom waveform corrupts the flash contents ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) |
+| `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900-60M | V1.9 | V1.9 | 1.8.0 | stock bitstream, saving a custom waveform corrupts the flash contents ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2), likely cause: [firmware-notes.md](firmware-notes.md#custom-waveform-upload)) |
 | `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900 | ? | ? | ? | identical in several dumps from other sources, revisions unknown |
 | `f15cbb2f2eaa7d125e04360a7c7ef1715425b635f97692310a4733ebb36f2a4f` | this project, v0.18 | FY6900-60M | V2.1 | V2.2 | 1.8.0 | my unit, all functions tested |
 

@@ -27,7 +27,7 @@ Safety
   hold any image (the test unit carried the known stock bitstream although that bitstream
   never worked on it). "patch" therefore asks for the board revision:
     V2.1   tested with this project
-    V1.9   not yet tested, very likely compatible
+    V1.9   tested with this project
     other  refused - use --force only after checking the pin assignment of your board
            yourself (docs/pinout.csv); a wrong pin assignment can make the FPGA drive against
            other outputs on the board.
@@ -65,9 +65,7 @@ KNOWN_BITSTREAMS = {
 # Only these are accepted by "patch" without --force (see docs/installation.md, Compatibility).
 BOARDS = {
     "V2.1": ("tested", "tested with this project"),
-    "V1.9": ("likely", "not yet tested with this project, very likely compatible (the identical "
-                       "stock bitstream works there and uses the same output pins as this project "
-                       "on V2.1) - please report the result"),
+    "V1.9": ("tested", "tested with this project"),
 }
 
 
@@ -150,7 +148,7 @@ def cmd_info(args):
             print("\nThe bitstream area does not contain a Cyclone IV bitstream - most likely an")
             print("empty or bad read. Read the flash again (twice) and compare both reads.")
     print("\nNote: this identifies the content of the flash, not the board. Compatibility depends")
-    print("on the revision printed on the FPGA board (V2.1 tested, V1.9 very likely compatible).")
+    print("on the revision printed on the FPGA board (V2.1, V1.9 tested")
 
 
 def cmd_patch(args):
@@ -164,7 +162,7 @@ def cmd_patch(args):
     if status == "unknown":
         if not args.force:
             sys.exit("\nrefusing to patch: FPGA board %s is not known to be compatible.\n"
-                     "This project was tested on V2.1 (V1.9 very likely compatible). Compare the\n"
+                     "This project was tested on V2.1 and V1.9. Compare the\n"
                      "pin assignment of your board with docs/pinout.csv first, then run again with\n"
                      "--force - and please report the result." % board)
         print("warning: unknown board revision, continuing because of --force")

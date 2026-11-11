@@ -72,7 +72,7 @@ the patch tool asks for it (`--board`) and refuses other revisions unless forced
 | FPGA board | Stock bitstream | This project |
 |---|---|---|
 | V2.1 | identical; never starts its DDS on the test unit | **tested**, all functions |
-| V1.9 | identical; works ([report](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) | not yet tested – very likely compatible |
+| V1.9 | identical; works ([report](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) | **tested**, all functions (except waveform upload) |
 
 The bitstream in a flash dump is not proof of compatibility – the flash can contain an image
 from another unit, as on the V2.1 test unit, where the stock bitstream never worked. But it

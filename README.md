@@ -101,7 +101,7 @@ The 40/50 MHz models share the hardware family but were not tested.
 | Document | Content |
 |---|---|
 | [installation.md](docs/installation.md) | backup, patching, programming, restoring |
-| [hardware.md](docs/hardware.md) | board overview, signal path, connectors, pin summary, programming header |
+| [hardware.md](docs/hardware.md) | board overview, signal path, connectors, pin summary, programming header, SPI flash, schematic reference |
 | [pinout.csv](docs/pinout.csv) | all 144 FPGA pins |
 | [spi-protocol.md](docs/spi-protocol.md) | STM32 ↔ FPGA transport |
 | [registers.md](docs/registers.md) | complete register map |
@@ -140,6 +140,17 @@ builds a bitstream identical to [`release/fy6900_fpga_v0.19.rbf`](release). Test
   [Discussions](https://github.com/Marvin-4-2/FY6900_FPGA/discussions).
 * **Implementations** of the [roadmap](#roadmap) items – please run the testbenches
   (`fpga/sim/run_all.sh`) and check the timing summary before opening a pull request.
+
+## Related projects
+
+* [DerKammi/FY6600-15-30-50-60M](https://github.com/DerKammi/FY6600-15-30-50-60M) – reverse engineering of the FY6600: complete schematics of the main board
+  (V1.501), the front panel and the power supply, identified parts, photos and mods. The FPGA
+  connections of that main board match FPGA boards V1.9 and V2.1 of the FY6900 (only the
+  counter input is not drawn), so it is a valuable reference for the analog part – see
+  [docs/hardware.md](docs/hardware.md).
+* [gamerpaddy/fy6900-customfirmware](https://github.com/gamerpaddy/fy6900-customfirmware) –
+  an open-source front panel firmware project for the FY6900, still in development (see
+  [Acknowledgements](#acknowledgements)).
 
 ## Acknowledgements
 

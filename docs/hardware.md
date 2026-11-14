@@ -6,6 +6,14 @@ was measured on one unit: **FY6900 60 MHz with FPGA board V2.1 and front panel b
 
 ![FPGA board V2.1, top side](images/fpga_board_v2.1_top.jpg)
 
+**Schematics:** there is no published FY6900 schematic, but [DerKammi/FY6600-15-30-50-60M](https://github.com/DerKammi/FY6600-15-30-50-60M) contains a complete
+schematic of the closely related **FY6600 main board V1.501** (`Hardware/FY6600_Main_A0.pdf`),
+plus the front panel and the power supply. The layout differs, but the FPGA connections
+match FPGA boards V1.9 and V2.1 of the FY6900 (compared with this project's pin assignment).
+Only the counter input is not drawn there; according to the photos it goes to the same FPGA
+pin (135). The schematic is the best reference for the analog output stage, the trimmers and
+the power supply.
+
 ## Block diagram
 
 ```

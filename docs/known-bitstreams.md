@@ -29,6 +29,8 @@ It asks for:
 
 * the output of `python tools/fy6900_flash.py info <your dump>`
 * the revisions printed on the FPGA board and on the front panel board
+* the SPI flash chip (W25Q16 or W25Q32 – units with a W25Q32 are especially interesting, they
+  probably have a newer stock bitstream; `info` accepts their 4 MB dumps too)
 * model (40/50/60 MHz) and STM32 firmware version (shown at start-up)
 * whether the stock bitstream works on your unit
 

@@ -32,6 +32,21 @@ body:
       placeholder: e.g. V2.1
     validations:
       required: true
+  - type: dropdown
+    id: flash_chip
+    attributes:
+      label: SPI flash chip
+      description: >-
+        The 8-pin chip next to the 10-pin programming header on the FPGA board; the type is
+        printed on it (e.g. "25Q16JVSIQ" = W25Q16). Units with a W25Q32 are especially
+        interesting – they probably have a newer stock bitstream.
+      options:
+        - "W25Q16 (2 MB)"
+        - "W25Q32 (4 MB)"
+        - "Other (please give the marking in the notes)"
+        - "Don't know"
+    validations:
+      required: true
   - type: input
     id: front_panel
     attributes:

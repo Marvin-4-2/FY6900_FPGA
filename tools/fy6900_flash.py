@@ -12,7 +12,8 @@ waveform tables that the STM32 firmware loads through the FPGA. This tool replac
 bitstream area and keeps everything else from YOUR OWN flash dump.
 
 Sub-commands
-  info    <dump.bin>                         show size and identify the bitstream (SHA-256)
+  info    <dump.bin>                         show size and identify the bitstream (SHA-256);
+                                             accepts 2 MB and 4 MB (W25Q32) dumps
   patch   <dump.bin> <bitstream.rbf> <out.bin> --board REV [--force]
                                              insert the bitstream (.rbf) into a copy of the dump;
                                              REV = revision printed on the FPGA board, e.g. V2.1
@@ -90,12 +91,17 @@ def sha256(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def load_image(path):
+def load_image(path, allow_4mb=False):
+    """Load a flash image: exactly 2 MB (W25Q16, or the first 2 MB of a W25Q32 as read with the
+    USB-Blaster as EPCS16). With allow_4mb a complete 4 MB W25Q32 dump is accepted too."""
     data = open(path, "rb").read()
-    if len(data) != FLASH_SIZE:
-        sys.exit("error: %s is %d bytes, a W25Q16 image must be exactly %d bytes (2 MB)"
-                 % (path, len(data), FLASH_SIZE))
-    return data
+    if len(data) == FLASH_SIZE or (allow_4mb and len(data) == 2 * FLASH_SIZE):
+        return data
+    if len(data) == 2 * FLASH_SIZE:
+        sys.exit("error: %s is a 4 MB (W25Q32) image - this command handles only 2 MB images.\n"
+                 "See docs/installation.md, \"Units with a 4 MB flash (W25Q32)\"." % path)
+    sys.exit("error: %s is %d bytes, a W25Q16 image must be exactly %d bytes (2 MB)"
+             % (path, len(data), FLASH_SIZE))
 
 
 def identify(data):
@@ -132,11 +138,12 @@ def rbf_to_flash(rbf):
 # info / patch
 # ------------------------------------------------------------------------------------
 def cmd_info(args):
-    data = load_image(args.dump)
+    data = load_image(args.dump, allow_4mb=True)
     h, kind, desc = identify(data)
     end = len(data[:BITSTREAM_AREA].rstrip(b"\xff"))
     print("file:            %s" % args.dump)
-    print("size:            %d bytes (ok)" % len(data))
+    print("size:            %d bytes (ok, %s)" % (len(data), "2 MB" if len(data) == FLASH_SIZE
+                                                  else "4 MB W25Q32 dump"))
     print("bitstream bytes: 0x000000 .. 0x%06x" % end)
     print("bitstream SHA-256 (flash 0x000000..0x%06x): %s" % (BITSTREAM_AREA, h))
     print("identified as:   %s" % desc)

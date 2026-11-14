@@ -148,7 +148,7 @@ def cmd_info(args):
             print("\nThe bitstream area does not contain a Cyclone IV bitstream - most likely an")
             print("empty or bad read. Read the flash again (twice) and compare both reads.")
     print("\nNote: this identifies the content of the flash, not the board. Compatibility depends")
-    print("on the revision printed on the FPGA board (V2.1, V1.9 tested")
+    print("on the revision printed on the FPGA board (V2.1 and V1.9 tested).")
 
 
 def cmd_patch(args):

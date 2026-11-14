@@ -48,7 +48,7 @@ the selected waveforms from the SPI flash into its wave RAMs and generates both 
 
 ## Quick start
 
-1. Check the revision printed on the FPGA board – V2.1 is tested, V1.9 very likely works
+1. Check the revision printed on the FPGA board – V2.1 and V1.9 are tested
    (see [Compatibility](#compatibility)). Back up the W25Q16 flash of your unit (2 MB) and
    keep the backup.
 2. Check the dump: `python tools/fy6900_flash.py info backup.bin`

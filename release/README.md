@@ -25,4 +25,5 @@ compile with Quartus Prime 25.1 Lite reproduces it bit for bit.
 ## v0.18
 
 Covers all functions listed in the [README](../README.md#status). Tested on an FY6900 60 MHz
-with FPGA board V2.1, front panel board V2.2 and STM32 firmware 1.8.0.
+with FPGA board V2.1, front panel board V2.2 and STM32 firmware 1.8.0, and confirmed on a
+second unit with FPGA board V1.9 ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).

@@ -15,7 +15,7 @@ touched. The procedure is reversible as long as you keep the backup of your flas
 
 ## What you need
 
-* An FY6900 with **FPGA board V2.1** (printed on the board; V1.9 very likely works too) – see
+* An FY6900 with **FPGA board V2.1 or V1.9** (printed on the board) – see
   [Compatibility](#compatibility)
 * An Intel/Altera **USB-Blaster** (clones work) with the 10-pin cable
 * **Intel Quartus Prime Programmer** with Cyclone IV support – either the stand-alone
@@ -81,9 +81,7 @@ Pass the revision printed on your FPGA board with `--board`:
 python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin --board V2.1
 ```
 
-* **V2.1:** tested, the tool patches.
-* **V1.9:** not yet tested but very likely compatible; the tool patches and asks you to
-  report the result.
+* **V2.1 or V1.9:** tested, the tool patches.
 * **Any other revision:** the tool refuses. Compare your board with [pinout.csv](pinout.csv)
   first; `--force` patches anyway.
 
@@ -140,15 +138,12 @@ against other outputs on the board.
 | FPGA board | Status |
 |---|---|
 | **V2.1** | **tested** on one unit: FY6900 60 MHz, front panel board V2.2, STM32 firmware 1.8.0 (1.4.2 also writes the same registers) |
-| **V1.9** | not yet tested, very likely compatible – see below |
+| **V1.9** | **tested** on a second unit: FY6900-60M, front panel board V1.9 ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)) |
 | other | unknown – compare with [pinout.csv](pinout.csv) before you use `--force`, and please report the result |
 
-Why V1.9 is very likely compatible: the stock bitstream of a V1.9 unit is identical to the
-one found on the V2.1 test unit and works there
-([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)). On the V2.1 unit that bitstream
-drove the relays, the DAC data lines and the MCP4822s on exactly the pins this project uses
-– only its DDS never started. So it was made for this pin assignment, and the V1.9 board
-matches it. If you try this project on V1.9, please report the result.
+Both boards share the pin assignment of the stock bitstream: it is identical on both, works
+on V1.9, and on the V2.1 unit it drove the relays, the DAC data lines and the MCP4822s on
+exactly the pins this project uses – only its DDS never started there.
 
 The bitstream in your flash dump is **not** proof of compatibility: the flash can contain an
 image from another unit – the V2.1 test unit carried the stock bitstream although it never

@@ -126,9 +126,10 @@ voltage inside.
 
 ## SPI flash (W25Q16 / W25Q32)
 
-The test unit has a W25Q16JV (2 MB). Some FY6900 revisions are fitted with a W25Q32 (4 MB);
-firmware 1.8.0 is laid out for such a flash (custom waveform slots up to 0x29FFFF, see
-[firmware-notes.md](firmware-notes.md#custom-waveform-upload)).
+The test unit has a W25Q16JV (2 MB). Some FY6900 units are fitted with a W25Q32 (4 MB) –
+for example a unit with FPGA board V1.9 ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)), so the flash type is not tied to the
+board revision. Firmware 1.8.0 is laid out for such a flash (custom waveform slots up to
+0x29FFFF, see [firmware-notes.md](firmware-notes.md#custom-waveform-upload)).
 
 A W25Q32 is a drop-in replacement: same SOIC-8 package, pinout and commands. Tested with a
 W25Q32 soldered into the V2.1 test unit:

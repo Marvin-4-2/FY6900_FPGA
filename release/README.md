@@ -28,8 +28,10 @@ Guarded flash writes: custom waveforms uploaded with the PC software are stored 
 flash. The flash size comes from the JEDEC ID (W25Q16 2 MB, W25Q32 4 MB); nothing is written
 below 0x05A000 (bitstream area) or beyond the flash size, so the 1.8.0 slot layout can no
 longer corrupt the flash. Details: [docs/fpga-design.md](../docs/fpga-design.md#flash-writes).
-Tested on the V2.1 unit with a W25Q32 soldered in (test script and PC software upload); the
-W25Q16 case (slots 25–64 refused) is verified in simulation, not yet on hardware.
+Tested on the V2.1 unit with a W25Q32 soldered in (test script and PC software upload) and
+confirmed by a user on a V1.9 unit with a factory-fitted W25Q32JV (all 64 slots, all
+functions, [#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)); the W25Q16 case (slots 25–64 refused) is verified in simulation, not
+yet on hardware.
 
 ## v0.18
 

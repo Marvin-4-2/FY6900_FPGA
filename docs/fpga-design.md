@@ -258,5 +258,7 @@ Verified with the testbenches `tb_flash16`, `tb_flash32` and `tb_flashid`
 ([simulation.md](simulation.md)) and on the test unit with a W25Q32: slots 1, 25 and 47
 (uploaded with a test script, and an upload with the PC software) were stored, played back
 correctly and survived a power cycle; in the first 2 MB only slot 1 changed, the bitstream
-stayed intact. The refusal of slots 25–64 on a W25Q16 is covered by `tb_flash16` but has not
-been tested on hardware yet.
+stayed intact. A user confirmed it on an FY6900-60M with FPGA board V1.9 and a factory-fitted
+W25Q32JV: all 64 slots stored, all functions checked with a scope ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)). The refusal
+of slots 25–64 on a W25Q16 is covered by `tb_flash16` but has not been tested on hardware
+yet.

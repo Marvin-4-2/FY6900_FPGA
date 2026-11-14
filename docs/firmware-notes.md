@@ -220,7 +220,8 @@ switching the waveform hangs the unit. The flash can be restored with the USB-Bl
 usual.
 
 This matches the report that saving a custom waveform with 1.8.0 corrupts the flash
-([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).
+([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)). The reporter's unit has a W25Q32JV – the corruption happened anyway, because
+the original design wraps every address at 2 MB (see below).
 
 **The wrap-around happens in the stock FPGA.** The same test with a 4 MB W25Q32 soldered into
 the test unit gave the same result: slot 48 landed at 0x05C000 and slot 25 at 0x1B0000, the

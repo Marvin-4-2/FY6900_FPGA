@@ -165,8 +165,8 @@ unit). But an EPCS16 backup, `fy6900_flash.py` and the `.pof` cover **only the f
 * With firmware 1.8.0 the custom waveform slots 25–64 lie above 2 MB (0x200000–0x29FFFF) and
   are **not** in an EPCS16 backup. (With this project from v0.19 a W25Q32 makes all 64 slots
   usable.)
-* Whether the Quartus Programmer erases the whole chip when it programs an EPCS16 `.pof` –
-  which would delete those slots – has not been tested. Save custom waveforms you need on the
-  PC before programming.
+* Programming an EPCS16 `.pof` leaves the second half alone: on the test unit custom slots
+  25 and above survived re-programming with the Quartus Prime 25.1 Programmer. Still, they
+  are not part of your backup – save custom waveforms you need on the PC.
 * The FPGA board revision still decides compatibility; boards that come with a W25Q32 have
   not been tested yet.

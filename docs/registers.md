@@ -94,9 +94,10 @@ CH2 has no Adj-Pulse: 1/2 → 1, 3 → 2, 4 → 3, 5 → 7. A channel that is sw
 | 0 | CH2 range relay "small" |
 
 Normal value with both outputs on and uplink off: `0x1C0`. The FW selects the range from
-amplitude and offset (bits 3:2 = `01` if Amp/20 + |Offset| ≤ 350 and Amp ≤ 5000 and
-|Offset| ≤ 250; `10` if Amp/20 + |Offset| > 3500 or Amp > 50000 or |Offset| > 2500;
-otherwise `00`; values in mV). On every range change the FW sets the amplitude to 0,
+amplitude and offset (bits 3:2 = `01` if peak + |offset| ≤ 0.35 V and amplitude ≤ 0.5 Vpp
+and |offset| ≤ 0.25 V; `10` if peak + |offset| > 3.5 V or amplitude > 5 Vpp or
+|offset| > 2.5 V; otherwise `00` – see
+[firmware-notes.md](firmware-notes.md#output-range-0x05-bits-30)). On every range change the FW sets the amplitude to 0,
 writes reg 0x05 repeatedly and ramps the amplitude up again – that is the relay click.
 
 ### 0x06:0x07 / 0x08:0x09 – frequency

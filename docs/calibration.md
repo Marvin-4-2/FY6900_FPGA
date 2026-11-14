@@ -36,6 +36,14 @@ Each channel has three trimmers (silkscreen names on FPGA board V2.1):
 The FPGA does not apply any analog correction: amplitude and offset come from the MCP4822
 codes written by the firmware.
 
+**Check the firmware first.** The firmware scales the offset with a coefficient that it
+normally takes from its configuration in the SPI flash. Firmware 1.8.0 on a V1.9 / V2.1 board
+whose flash still has the original layout falls back to defaults made for other hardware:
+**every offset comes out about 37 % too high**, and the trimmers cannot correct that. Use
+firmware 1.4.2 on these boards for an offset that is right – see
+[firmware-notes.md](firmware-notes.md#offset-and-amplitude-scaling). The amplitude is not
+affected.
+
 ### Before turning anything
 
 * Photograph or mark the current trimmer positions.
@@ -46,17 +54,21 @@ codes written by the firmware.
 
 ### Step 1 – characterise
 
-Per channel, in the middle range (no setting below about 0.35 V or above about 3.5 V):
+Per channel. The middle range covers amplitudes up to 5 Vpp and offsets up to ±2.5 V (with
+peak + |offset| ≤ 3.5 V); the points marked "large" switch to the large range:
 
 | Setting | Measured |
 |---|---|
-| DC, offset −3 V / −1 V / 0 V / +1 V / +3 V | |
-| square 0.1 Hz, offset 0, 2 Vpp: high / low | |
-| square 0.1 Hz, offset 0, 5 Vpp: high / low | |
-| square 0.1 Hz, offset 0, 10 Vpp: high / low | |
+| DC, offset −1 V / 0 V / +1 V | |
+| DC, offset −3 V / +3 V (large) | |
+| square 0.1 Hz, offset 0, 1 / 2 / 3 / 4 / 5 Vpp: high / low | |
+| square 0.1 Hz, offset 0, 10 Vpp (large): high / low | |
+| square 0.1 Hz, 1 Vpp, offset +1 V: high / low | |
 
 The DC series gives the zero error and the gain of the offset path, the square series the
-amplitude gain and the symmetry (|high| vs. |low| around the offset).
+amplitude gain and the symmetry (|high| vs. |low| around the offset). Read the levels of the
+square wave with the DMM, not with the oscilloscope – the scope's cursors are not accurate
+enough for this.
 
 ### Step 2 – find out what each trimmer does
 
@@ -72,6 +84,23 @@ Typical order for this kind of output stage (confirm with step 2):
 3. Amplitude trimmer: square 10 Vpp → high − low = 10.00 V.
 4. Repeat 1–3 once (they interact), then check the DC series and the small/large ranges.
 
-Errors the trimmers cannot remove (for example a gain error of the offset path) would have
-to be corrected in the firmware's calibration data. Reports with measurement series are
-welcome.
+Errors the trimmers cannot remove (for example a gain error of the offset path) come from
+the firmware's coefficients (see above). Reports with measurement series are welcome.
+
+### Results on the test unit (so far)
+
+FPGA board V2.1, CH1, firmware 1.8.0, Fluke 177 into high impedance:
+
+| Point | Result |
+|---|---|
+| zero (DC 0 V) | +5 mV |
+| offset path, middle range (DC ±1 V) | 1.347 V per volt: +35 % – firmware coefficient, see above |
+| offset path, large range (DC ±3 V) | 1.376 V per volt: +38 % – firmware coefficient |
+| amplitude 1 / 2 / 3 / 4 Vpp (middle) | 1.000 / 2.000 / 3.003 / 4.009 Vpp: within 0.2 % |
+| amplitude 5 Vpp (middle) | 5.22 Vpp: +4.4 % – the firmware's code is linear, so this is the analog path at 90 % of the DAC reference |
+| amplitude 10 Vpp (large) | 10.028 Vpp: +0.3 % |
+| range switch | the relay clicks just above 5 Vpp |
+
+Trimmer behaviour found so far: **W2 ("Offset") moves both the zero and the gain of the
+offset path** – it is not a pure zero trimmer, and its range is far too small for the 37 %
+of the firmware coefficient. W26, W5 and channel 2 have not been characterised yet.

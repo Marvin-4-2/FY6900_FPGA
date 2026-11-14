@@ -33,16 +33,61 @@ result. This design ignores the handshake (0x1B reads 0); the firmware works nor
 
 ## Output range (0x05 bits 3:0)
 
-Function 0x08011C64 (1.4.2) selects the range per channel from amplitude and offset:
+Function 0x08011C64 (1.4.2) selects the range per channel from amplitude and offset. The
+firmware keeps the amplitude in units of 0.1 mV (peak to peak) and the offset in mV; written
+as voltages:
 
-| Bits | Range | Condition (values in mV) |
+| Bits | Range | Condition |
 |---|---|---|
-| `01` | small (attenuator) | Amp/20 + \|Offset\| ≤ 350 and Amp ≤ 5000 and \|Offset\| ≤ 250 |
-| `10` | large (gain) | Amp/20 + \|Offset\| > 3500 or Amp > 50000 or \|Offset\| > 2500 (and f ≤ 20 MHz) |
+| `01` | small (attenuator) | peak + \|offset\| ≤ 0.35 V and amplitude ≤ 0.5 Vpp and \|offset\| ≤ 0.25 V |
+| `10` | large (gain) | peak + \|offset\| > 3.5 V or amplitude > 5 Vpp or \|offset\| > 2.5 V (and f ≤ 20 MHz) |
 | `00` | middle | otherwise |
 
 CMOS and Adj-Pulse count twice the amplitude (they are unipolar). On every change the
 firmware sets the amplitude to 0, writes reg 0x05 repeatedly and ramps the amplitude up.
+(On the test unit the relay clicks just above 5 Vpp, as the rule says.)
+
+## Offset and amplitude scaling
+
+The firmware computes the 12-bit MCP4822 codes itself; the FPGA passes them through
+unchanged (CH1 offset code: 0x08012466 in 1.8.0, 0x08011EDC in 1.4.2).
+
+| Range | Offset code (0x29 / 0x2A) | Amplitude code (0x2B / 0x2C) |
+|---|---|---|
+| small | 0x7FF + offset[mV] × 2047 / 250 × F_1x | amplitude × 4095 × 0.9 / 0.5 Vpp |
+| middle | 0x7FF + offset[mV] × 2047 / 2500 × F_1x | amplitude × 4095 × 0.9 / 5 Vpp |
+| large | 0x7FF + offset[mV] × 0.2047 × F_4x | amplitude × 4095 × 0.9 / 24 Vpp (very large amplitudes use another factor) |
+
+The amplitude scaling is identical in 1.4.2 and 1.8.0. The offset uses a **coefficient per
+channel and range** ("XISHU", Chinese for coefficient): F_1x for the small and the middle
+range, F_4x for the large range (the output gain of the large range is about 4×).
+
+1.8.0 loads the coefficients at start-up (0x08011DA8) from its configuration block in the SPI
+flash (at 0x190000, words at +0x6E8 … +0x6F4, stored as coefficient × 10000). An erased word
+keeps the compiled-in default:
+
+| Coefficient | Default 1.4.2 | Default 1.8.0 | Ratio |
+|---|---|---|---|
+| F_1x (small, middle) | 0.644 | 0.8844 | 1.373 |
+| F_4x (large) | 0.534 | 0.7501 | 1.405 |
+
+**Consequence on boards V1.9 / V2.1:** a flash with the original (1.4.2) layout has no 1.8.0
+configuration block, so 1.8.0 uses its defaults. On the test unit (FPGA board V2.1, firmware
+1.8.0) a set offset of +1 V gave 1.35 V and +3 V gave 4.11 V – **+35 % and +38 %**, exactly
+the ratio of the defaults. 1.8.0's defaults evidently belong to newer hardware whose
+per-unit values are stored in the configuration block. The analog trimmers cannot
+compensate this (the offset trimmer of the test unit reached its end stop); with **firmware
+1.4.2** the offset is expected to be correct within about 2 %. The waveform amplitude is not
+affected.
+
+1.8.0 contains a factory calibration for these coefficients: the UART commands
+`CH11XISHU`, `CH14XISHU`, `CH21XISHU` and `CH24XISHU` (channel 1/2, 1× = middle, 4× = large
+range) pass a measured value – the raw bits of a float, written in decimal – taken at the
+nominal offset (1 V in the middle range, 10 V in the large range); the firmware sets
+F_new = F_old × nominal / measured. A long press on a front panel key does the same with the
+offset value entered on the display. The new values are saved to the configuration block;
+whether that works without an existing block (as on a flash with the original layout) has
+not been checked. None of this has been tried on the unit.
 
 ## Frequency counter
 
@@ -205,5 +250,6 @@ on register 0x16 that 1.4.2 sends before its second write loop.
 | reg 0x05 | 8 bits (normal value 0xC0) | 9 bits (normal value 0x1C0), bits 8/7 = output on |
 | built-in waveforms | 0x60000–0xDFFFF | 0x100000–0x17FFFF (copies in the stock flash) – irrelevant for the FPGA, it loads from the address it is given |
 | custom waveform slots | 0x100000–0x1FFFFF | 0x1A0000–0x29FFFF – beyond the 2 MB flash, see [above](#custom-waveform-upload) |
+| offset coefficients without a configuration block | 0.644 / 0.534 | 0.8844 / 0.7501 – offset 37 % too high on V1.9 / V2.1 boards, see [above](#offset-and-amplitude-scaling) |
 
-Everything else – register numbers, scaling, modulation, counter – is identical.
+Everything else – register numbers, amplitude scaling, modulation, counter – is identical.

@@ -82,6 +82,8 @@ that the stock firmware and its user interface can stay unchanged.
 | v0.15c/v0.16 | Sync OUT and the **uplink** (master/slave) as described in the user manual |
 | v0.17 | **Adj-Pulse** with a fixed pulse width in 4 ns steps (48-bit threshold instead of the 17-bit duty) |
 | v0.18 | **frequency calibration**: the DDS constant is derived from the reference registers, so the hidden calibration menu works for the generator and the counter |
+| – | after the release: a user reported that saving a custom waveform with firmware 1.8.0 corrupts the flash. The firmware analysis and tests with the stock bitstream showed why – 1.8.0 lays out its slots for a 4 MB flash, the original FPGA wraps at 2 MB and protects only part of the bitstream – and the unit was deliberately "killed" with an upload to slot 47 to prove it |
+| v0.19 | **guarded flash writes**: custom waveform upload works; the flash size comes from the JEDEC ID, nothing is written below 0x05A000 or beyond the flash size. Tested with a W25Q32 soldered in |
 
 Finally all 144 FPGA pins were mapped from high-resolution photos of the two-layer board:
 the 25 unused I/Os are not connected, so nothing in the signal path is left uncontrolled.

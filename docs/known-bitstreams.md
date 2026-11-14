@@ -17,6 +17,7 @@ accepts unknown bitstreams on known boards.
 | `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900-60M | V1.9 | V1.9 | 1.8.0 | stock bitstream, saving a custom waveform corrupts the flash contents ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2), likely cause: [firmware-notes.md](firmware-notes.md#custom-waveform-upload)) |
 | `89632919deee57d3639dc64ba47d3ba80cc34e3998c8f58d9baca5b7057428e5` | FeelTech stock (ID register 0x3A = 0x10) | FY6900 | ? | ? | ? | identical in several dumps from other sources, revisions unknown |
 | `f15cbb2f2eaa7d125e04360a7c7ef1715425b635f97692310a4733ebb36f2a4f` | this project, v0.18 | FY6900-60M | V2.1 | V2.2 | 1.8.0 | my unit, all functions tested |
+| `39d01d255e8fef65fd14ba924cc02235853a2f5760001dcf02943db86f0dd077` | this project, v0.19 | FY6900-60M | V2.1 | V2.2 | 1.8.0 | my unit with a W25Q32 soldered in, flash writes tested |
 
 For comparison: an FY6600 V3.1 dump has a different bitstream (different hardware).
 

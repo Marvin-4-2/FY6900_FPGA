@@ -27,10 +27,12 @@ see [calibration.md](calibration.md)).
 | 0x0D | W | flash byte read strobe | yes |
 | 0x0E | W | authentication: challenge index | ignored |
 | 0x0F | W | waveform transfer target | yes |
-| 0x11, 0x13, 0x14, 0x16 | W | flash erase / write | not implemented yet (future extension) |
+| 0x11 | W | flash sector erase strobe | yes (with write guard) |
+| 0x13 / 0x14 | W | flash program strobe / data byte | yes (with write guard) |
+| 0x16 | W | flash write sequence begin / end | ignored (not needed) |
 | 0x12 | W | waveform transfer strobe | yes |
 | 0x15 | R | flash busy | yes |
-| 0x17 | W | flash address | yes |
+| 0x17 | W | flash address (also the write pointer) | yes |
 | 0x18 | W | MANU key / manual trigger | yes |
 | 0x19 | W | burst count and keying source | yes |
 | 0x1A, 0x1C | W | authentication: response | ignored |
@@ -202,8 +204,14 @@ The STM32 has no direct access to the SPI flash; it uses the FPGA.
 | 0x12 | rising edge of bit 0: transfer 16384 bytes (8192 × 14-bit samples) from 0x17 into the wave RAM |
 | 0x0D | rising edge of bit 0: read one byte at 0x17 (FW pulses 1, 1, 0, 0) |
 | 0x0C | R: byte read, bit order `{f3, f5, f0, f1, f6, f4, f2, f7}` of the flash byte f |
-| 0x15 | R: busy (≠ 0 while a transfer runs) |
-| 0x11, 0x13, 0x14, 0x16 | sector erase, byte write, write data, write sequence – not implemented yet, see [fpga-design.md](fpga-design.md#future-extension-flash-writes) |
+| 0x15 | R: busy (≠ 0 while a transfer, erase or program runs) |
+| 0x11 | rising edge of bit 0: erase the 4 KB sector at 0x17 |
+| 0x14 | data byte to program (plain; stored bit-permuted, see below) |
+| 0x13 | rising edge of bit 0: program the byte from 0x14 at the write pointer, then advance the pointer (every write to 0x17 loads it) |
+| 0x16 | begin / end of a write sequence – ignored |
+
+Erase and program only act on addresses from 0x05A000 up to the end of the flash (2 MB or
+4 MB from the JEDEC ID); see [fpga-design.md](fpga-design.md#flash-writes).
 
 Waveforms are stored as 8192 samples × 14 bit little endian, every byte bit-permuted;
 the FPGA unscrambles a flash byte f as `{f4, f2, f7, f0, f1, f6, f3, f5}`.

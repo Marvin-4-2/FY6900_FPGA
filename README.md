@@ -15,7 +15,7 @@ generator that involves the FPGA.
 
 ## Status
 
-Version **0.18**. Everything below was tested on the unit unless marked otherwise.
+Version **0.19**. Everything below was tested on the unit unless marked otherwise.
 
 | Area | Function | Status |
 |---|---|---|
@@ -31,7 +31,7 @@ Version **0.18**. Everything below was tested on the unit unless marked otherwis
 | | uplink master/slave (multi-unit synchronisation) | ✅ slave tested with a loop-back, master simulated |
 | Calibration | frequency calibration (hidden "OSCI" menu) acts on generator and counter | ✅ implemented, regression tested; not yet calibrated against a reference |
 | Start-up | no 4–5 s ID wait with firmware 1.8.0 | ✅ |
-| Waveform upload | storing arbitrary waveforms in the flash (PC software) | 🔜 future extension – see [Roadmap](#roadmap) |
+| Waveform upload | storing custom waveforms from the PC software in the flash, with a write guard that protects the bitstream and never wraps around; W25Q16 and W25Q32 | ✅ ([details](docs/fpga-design.md#flash-writes)) |
 
 ## How it works
 
@@ -52,7 +52,7 @@ the selected waveforms from the SPI flash into its wave RAMs and generates both 
    (see [Compatibility](#compatibility)). Back up the W25Q16 flash of your unit (2 MB) and
    keep the backup.
 2. Check the dump: `python tools/fy6900_flash.py info backup.bin`
-3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin --board V2.1`
+3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.19.rbf patched.bin --board V2.1`
    (your board revision)
 4. Convert it: `python tools/fy6900_flash.py pof patched.bin patched.pof`
 5. Program `patched.pof` with a USB-Blaster through the 10-pin header ("Active Serial
@@ -121,18 +121,12 @@ quartus_sh --flow compile fy_fpga
 ```
 
 Quartus Prime Lite with Cyclone IV E support (developed with 25.1). The resulting
-`fy_fpga.rbf` is used with `tools/fy6900_flash.py patch`. The repository source of v0.18
-builds a bitstream identical to [`release/fy6900_fpga_v0.18.rbf`](release). Testbenches:
+`fy_fpga.rbf` is used with `tools/fy6900_flash.py patch`. The repository source of v0.19
+builds a bitstream identical to [`release/fy6900_fpga_v0.19.rbf`](release). Testbenches:
 `fpga/sim/run_all.sh` – see [docs/simulation.md](docs/simulation.md).
 
 ## Roadmap
 
-* **Waveform upload (flash writes).** The PC software stores arbitrary waveforms in the
-  generator's SPI flash through the FPGA (sector erase and byte programming via registers
-  0x11, 0x13, 0x14, 0x16). This design currently ignores these registers, so stored
-  waveforms can be used but not changed. What is known about the protocol and how it could
-  be implemented safely is described in
-  [docs/fpga-design.md](docs/fpga-design.md#future-extension-flash-writes).
 * Analog calibration data for the trimmers (measurement series welcome).
 
 ## Contributing

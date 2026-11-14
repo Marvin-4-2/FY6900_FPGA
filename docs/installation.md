@@ -83,7 +83,7 @@ carried the known stock bitstream although that bitstream never worked on it).
 Pass the revision printed on your FPGA board with `--board`:
 
 ```
-python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.18.rbf patched.bin --board V2.1
+python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.19.rbf patched.bin --board V2.1
 ```
 
 * **V2.1 or V1.9:** tested, the tool patches.
@@ -163,7 +163,8 @@ USB-Blaster accepts the W25Q32 as an EPCS16 (tested with a W25Q32 fitted to the 
 unit). But an EPCS16 backup, `fy6900_flash.py` and the `.pof` cover **only the first 2 MB**:
 
 * With firmware 1.8.0 the custom waveform slots 25–64 lie above 2 MB (0x200000–0x29FFFF) and
-  are **not** in an EPCS16 backup.
+  are **not** in an EPCS16 backup. (With this project from v0.19 a W25Q32 makes all 64 slots
+  usable.)
 * Whether the Quartus Programmer erases the whole chip when it programs an EPCS16 `.pof` –
   which would delete those slots – has not been tested. Save custom waveforms you need on the
   PC before programming.

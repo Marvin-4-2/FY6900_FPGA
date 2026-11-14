@@ -8,7 +8,7 @@
 //
 // Target:   FeelTech FY6900 (60 MHz), FPGA board V2.1, Intel/Altera Cyclone IV E EP4CE6E22C8N
 // Firmware: works with the stock STM32 front-panel firmware (tested with 1.8.0, 1.4.2 compatible)
-// Version:  0.18
+// Version:  0.19
 //
 // The design re-implements the register interface that the stock STM32 firmware expects from
 // the original FPGA bitstream. The firmware, its user interface and all of its menus stay
@@ -18,8 +18,9 @@
 // Functional overview
 //   - SPI slave for the STM32 (mode 3, 16-bit words, separate address/data phase via REGSEL)
 //   - 64 x 32-bit register file, toggle-synchronised into the 125 MHz system clock domain
-//   - SPI flash controller (W25Q16, read only): loads waveforms into the wave RAMs and
-//     answers single-byte reads for the STM32
+//   - SPI flash controller (W25Q16 / W25Q32): loads waveforms into the wave RAMs, answers
+//     single-byte reads for the STM32 and stores uploaded custom waveforms (sector erase, byte
+//     program) behind a write guard that protects the bitstream area and never wraps around
 //   - two DDS channels (module dds_ch) at 125 MSPS with 48-bit phase accumulators:
 //       table waveforms (8192 x 14 bit), square/rectangle with sub-sample edge interpolation,
 //       trapezoid, CMOS/pulse (unipolar), Adj-Pulse with fixed pulse width, DC/off
@@ -30,7 +31,8 @@
 //   - TTL outputs (Port A-D), Sync OUT, Sync IN (uplink master/slave)
 //   - frequency calibration: the DDS follows the reference value the firmware writes
 //
-// The SPI flash is never written by this design (see docs/fpga-design.md, limitations).
+// Flash writes are guarded: nothing below 0x05A000 (bitstream area) and nothing beyond the
+// flash size read from the JEDEC ID (see docs/fpga-design.md, flash writes).
 // =====================================================================================
 
 module fy_fpga #(
@@ -177,6 +179,7 @@ module fy_fpga #(
     reg        at_seen = 1'b0, dt_seen = 1'b0, at_prev = 1'b0;
     reg        ph_sync = 1'b0;   // pulse: register 0x2F written (apply phases, sync channels)
     reg        kc_wr   = 1'b0;   // pulse: register 0x22/0x23 written (frequency calibration)
+    reg        a17_wr  = 1'b0;   // pulse: register 0x17 written (flash address -> write pointer)
     reg [5:0]  rd_addr = 6'd0;
     reg [31:0] regs [0:63];
     integer k;
@@ -198,11 +201,13 @@ module fy_fpga #(
             rd_addr <= addr_lat[5:0];
         ph_sync <= 1'b0;
         kc_wr   <= 1'b0;
+        a17_wr  <= 1'b0;
         if (cs_rise) begin
             if ((at_s[2] != at_seen) && (dt_s[2] != dt_seen)) begin
                 regs[addr_lat[5:0]] <= data_lat;
                 if (addr_lat[5:0] == 6'h2F) ph_sync <= 1'b1;   // apply phase settings
                 if (addr_lat[5:0] == 6'h22 || addr_lat[5:0] == 6'h23) kc_wr <= 1'b1;   // reference changed
+                if (addr_lat[5:0] == 6'h17) a17_wr <= 1'b1;    // flash address (write pointer)
             end else if (v16) begin
                 regs[6'h2D] <= {20'd0, v_lat[11:0]};            // VCO-IN sample (W 2D = 0x800 sets the centre)
             end
@@ -241,6 +246,7 @@ module fy_fpga #(
 
     // Flash controller status (see below)
     reg        fl_busy = 1'b0;
+    reg        fl_pend = 1'b0;      // a start request is latched but not yet started
     reg [7:0]  fl_rbyte = 8'd0;
 
     // ---------------------------------------------------------------------------------
@@ -256,7 +262,7 @@ module fy_fpga #(
         case (rd_addr_d)
             6'h1F:                rd_word <= 32'h0000_0010;          // FPGA ID (original value 0x10)
             6'h3A:                rd_word <= 32'h00FB_6910;          // ID/version: firmware 1.8.0 waits at power-on up to 200 x 20 ms for bits 23:8 = 0xFB69; bits 7:0 = version (original 0x10)
-            6'h15:                rd_word <= {31'd0, fl_busy};       // flash busy
+            6'h15:                rd_word <= {31'd0, fl_busy | fl_pend}; // flash busy (also while a request waits)
             6'h0C:                rd_word <= {24'd0, fl_rbyte};      // flash byte read
             6'h02:                rd_word <= cnt_rd02;               // counter result
             6'h03:                rd_word <= cnt_rd03;               // counter status
@@ -265,13 +271,36 @@ module fy_fpga #(
     end
 
     // ---------------------------------------------------------------------------------
-    // Flash controller: read command 0x03, SPI mode 0, 31.25 MHz (125 MHz / 4)
+    // Flash controller: SPI mode 0, 31.25 MHz (125 MHz / 4), W25Q16 / W25Q32
     // ---------------------------------------------------------------------------------
-    // Start conditions (rising edge in the register value):
-    //   register 0x12 bit 0: load a waveform (16384 bytes from address reg 0x17 into the wave
-    //                        RAM selected by reg 0x0F: 1 = CH1, 2 = CH2)
-    //   register 0x0D bit 0: read a single byte at address reg 0x17 (result in reg 0x0C)
-    reg r12_prev = 1'b0, r0d_prev = 1'b0;
+    // Operations, started by a rising edge in a register value (busy in register 0x15):
+    //   register 0x12 bit 0: load a waveform: 16384 bytes from address reg 0x17 into the wave
+    //                        RAM selected by reg 0x0F (1 = CH1, 2 = CH2)        flash cmd 0x03
+    //   register 0x0D bit 0: read a single byte at address reg 0x17 (result in reg 0x0C)  0x03
+    //   register 0x11 bit 0: erase the 4 KB sector at the write pointer      0x06, 0x20, 0x05
+    //   register 0x13 bit 0: program the byte in reg 0x14 at the write pointer,  0x06, 0x02, 0x05
+    //                        then advance the pointer by one
+    // The write pointer is loaded by every write to register 0x17. That serves both write
+    // routines of the firmware: the waveform upload sets 0x17 once per slot and relies on the
+    // increment, the (normally unused) ID routine sets 0x17 before every byte. Every byte is
+    // programmed with its own page-program command, so register 0x16 (begin/end of a write
+    // sequence for a page buffer in the original design) is not needed and ignored.
+    // The data byte is stored bit-permuted like all waveform data (scr below): the firmware
+    // passes the plain sample bytes received from the PC software unchanged to register 0x14.
+    //
+    // Write guard: erase and program are only executed for addresses from 0x05A000 (the
+    // bitstream area ends there) up to the end of the flash. The flash size is read from the
+    // JEDEC ID once after start-up: Winbond (0xEF) type 0x40/0x70 with capacity code 0x15 = 2 MB
+    // (W25Q16), 0x16 = 4 MB (W25Q32); any other ID allows no writes at all. A refused command
+    // sends nothing to the flash and is reported as done, so the firmware's upload finishes
+    // normally. Firmware 1.8.0 sends custom waveform slots 25..64 to 0x200000..0x29FFFF; on a
+    // W25Q16 they are refused instead of wrapping around into the bitstream (the original
+    // design wrapped them or redirected them to 0x1B0000, see docs/firmware-notes.md).
+    //
+    // Start requests are latched (pending flags), so a request that arrives while the JEDEC ID
+    // is being read is not lost; register 0x15 reads busy while a request is pending.
+    reg r12_prev = 1'b0, r0d_prev = 1'b0, r11_prev = 1'b0, r13_prev = 1'b0;
+    reg p12 = 1'b0, p0d = 1'b0, p11 = 1'b0, p13 = 1'b0;     // pending start requests
 
     // Bit order of single-byte reads: the original FPGA returns flash byte f as
     //   o[7:0] = {f3, f5, f0, f1, f6, f4, f2, f7}
@@ -285,12 +314,35 @@ module fy_fpga #(
     function [7:0] unscr(input [7:0] f);
         unscr = {f[4], f[2], f[7], f[0], f[1], f[6], f[3], f[5]};
     endfunction
+    // Inverse permutation for writing: data byte v is stored as flash byte
+    //   f[7:0] = {v5, v2, v0, v7, v1, v6, v3, v4}      (unscr(scr(v)) = v)
+    // This is what the original FPGA writes (measured on the test unit).
+    function [7:0] scr(input [7:0] v);
+        scr = {v[5], v[2], v[0], v[7], v[1], v[6], v[3], v[4]};
+    endfunction
 
-    localparam S_IDLE = 3'd0, S_CMD = 3'd1, S_DATA = 3'd2, S_DONE = 3'd3;
+    localparam S_IDLE = 3'd0, S_CMD = 3'd1, S_DATA = 3'd2, S_DONE = 3'd3,
+               S_RX   = 3'd4, S_GAP = 3'd5;
+    localparam OP_READ = 2'd0, OP_ID = 2'd1, OP_ERASE = 2'd2, OP_PROG = 2'd3;
     reg [2:0]  fst = S_IDLE;
     reg [1:0]  fph = 2'd0;          // clock phase 0..3 (one flash bit = 4 system clocks)
-    reg [31:0] fsh = 32'd0;         // shift register for command + address
-    reg [5:0]  fbit = 6'd0;
+    reg [39:0] fsh = 40'd0;         // shift register: command, address, data (sent MSB first)
+    reg [5:0]  fbit = 6'd0;         // bit counter (sending and S_RX)
+    reg [5:0]  fnbits = 6'd32;      // number of bits to send in S_CMD
+    reg [4:0]  frbits = 5'd0;       // number of bits to receive in S_RX after sending (0 = none)
+    reg [23:0] frx = 24'd0;         // bits received in S_RX (JEDEC ID, status register)
+    reg [1:0]  fop = OP_READ;       // current operation
+    reg [1:0]  fstep = 2'd0;        // erase/program: 0 = write enable, 1 = command, 2 = status poll
+    reg [3:0]  fgap = 4'd0;         // S_GAP timer: chip select high between two commands
+    reg [26:0] fto = 27'd0;         // erase/program timeout (2^27 clocks = 1.07 s)
+    reg [23:0] fop_addr = 24'd0;    // address of the current erase/program command
+    reg [7:0]  fop_data = 8'd0;     // flash byte of the current program command (permuted)
+    reg [23:0] wr_ptr = 24'd0;      // write pointer, loaded by writes to register 0x17
+    reg [1:0]  fl_size = 2'd0;      // flash size from the JEDEC ID: 1 = 2 MB, 2 = 4 MB, 0 = no writes
+    reg [23:0] fl_id = 24'd0;       // JEDEC ID (manufacturer, type, capacity)
+    reg        id_done = 1'b0;      // JEDEC ID has been read
+    reg [10:0] id_wait = 11'd0;     // short delay after the PLL is running (2048 clocks)
+    reg        wr_ok = 1'b0;        // write guard result for the write pointer
     reg [7:0]  fin = 8'd0;          // received byte
     reg [2:0]  fbc = 3'd0;          // bit counter within the byte
     reg [14:0] fbytes = 15'd0;      // byte counter (up to 16384)
@@ -309,37 +361,122 @@ module fy_fpga #(
         w2_we <= 1'b0;
         r12_prev <= regs[6'h12][0];
         r0d_prev <= regs[6'h0D][0];
+        r11_prev <= regs[6'h11][0];
+        r13_prev <= regs[6'h13][0];
+        fl_pend  <= p12 | p0d | p11 | p13 | !id_done;
+        if (!id_wait[10]) id_wait <= id_wait + 11'd1;
+        // write guard for the write pointer (also the erase address: every write to 0x17 loads
+        // the pointer). Registered; the pointer is stable long before the next strobe.
+        wr_ok <= (wr_ptr >= 24'h05A000) &&
+                 ((fl_size == 2'd1 && wr_ptr[23:21] == 3'd0) ||      // below 2 MB
+                  (fl_size == 2'd2 && wr_ptr[23:22] == 2'd0));       // below 4 MB
+        if (a17_wr) wr_ptr <= regs[6'h17][23:0];
 
         case (fst)
         S_IDLE: begin
             fl_cs_n <= 1'b1; fl_clk <= 1'b0;
-            if (regs[6'h12][0] && !r12_prev) begin
-                fmode_wave <= 1'b1;
-                ftarget    <= regs[6'h0F][1:0];
-                fsh        <= {8'h03, regs[6'h17][23:0]};
-                fst <= S_CMD; fbit <= 6'd0; fph <= 2'd0; fl_busy <= 1'b1;
-            end else if (regs[6'h0D][0] && !r0d_prev) begin
-                fmode_wave <= 1'b0;
-                fsh        <= {8'h03, regs[6'h17][23:0]};
-                fst <= S_CMD; fbit <= 6'd0; fph <= 2'd0; fl_busy <= 1'b1;
+            fbit <= 6'd0; fph <= 2'd0; fto <= 27'd0;
+            if (!id_done) begin
+                // once after start-up: read the JEDEC ID (command 0x9F, 24 bits back)
+                if (id_wait[10]) begin
+                    fop <= OP_ID; fsh <= {8'h9F, 32'd0}; fnbits <= 6'd8; frbits <= 5'd24;
+                    fst <= S_CMD; fl_busy <= 1'b1;
+                end
+            end else if (p12) begin
+                p12 <= 1'b0;
+                fop <= OP_READ; fmode_wave <= 1'b1; ftarget <= regs[6'h0F][1:0];
+                fsh <= {8'h03, regs[6'h17][23:0], 8'h00}; fnbits <= 6'd32; frbits <= 5'd0;
+                fst <= S_CMD; fl_busy <= 1'b1;
+            end else if (p0d) begin
+                p0d <= 1'b0;
+                fop <= OP_READ; fmode_wave <= 1'b0;
+                fsh <= {8'h03, regs[6'h17][23:0], 8'h00}; fnbits <= 6'd32; frbits <= 5'd0;
+                fst <= S_CMD; fl_busy <= 1'b1;
+            end else if (p11) begin
+                p11 <= 1'b0;
+                if (wr_ok) begin   // erase: write enable first; refused: nothing happens
+                    fop <= OP_ERASE; fstep <= 2'd0; fop_addr <= wr_ptr;
+                    fsh <= {8'h06, 32'd0}; fnbits <= 6'd8; frbits <= 5'd0;
+                    fst <= S_CMD; fl_busy <= 1'b1;
+                end
+            end else if (p13) begin
+                p13 <= 1'b0;
+                if (wr_ok) begin   // program: write enable first; refused: nothing happens
+                    fop <= OP_PROG; fstep <= 2'd0; fop_addr <= wr_ptr;
+                    fop_data <= scr(regs[6'h14][7:0]);
+                    fsh <= {8'h06, 32'd0}; fnbits <= 6'd8; frbits <= 5'd0;
+                    fst <= S_CMD; fl_busy <= 1'b1;
+                end
+                wr_ptr <= wr_ptr + 24'd1;   // refused bytes advance the pointer as well
             end
         end
 
-        S_CMD: begin                // send 32 bits: command 0x03 + 24-bit address
+        S_CMD: begin                // send fnbits bits of fsh, MSB first
             fl_cs_n <= 1'b0;
             fph <= fph + 2'd1;
             case (fph)
-                2'd0: begin fl_clk <= 1'b0; fl_mosi <= fsh[31]; end
+                2'd0: begin fl_clk <= 1'b0; fl_mosi <= fsh[39]; end
                 2'd2: fl_clk <= 1'b1;
                 2'd3: begin
-                    fsh <= {fsh[30:0], 1'b0};
+                    fsh <= {fsh[38:0], 1'b0};
                     fbit <= fbit + 6'd1;
-                    if (fbit == 6'd31) begin
-                        fst <= S_DATA; fbc <= 3'd0; fbytes <= 15'd0; w_addr <= 13'd0;
+                    if (fbit == fnbits - 6'd1) begin
+                        fbit <= 6'd0;
+                        if (fop == OP_READ) begin
+                            fst <= S_DATA; fbc <= 3'd0; fbytes <= 15'd0; w_addr <= 13'd0;
+                        end else if (frbits != 5'd0) begin
+                            fst <= S_RX;
+                        end else begin
+                            fst <= S_GAP; fgap <= 4'd0;
+                        end
                     end
                 end
                 default: ;
             endcase
+        end
+
+        S_RX: begin                 // receive frbits bits into frx (JEDEC ID, status register)
+            fph <= fph + 2'd1;
+            case (fph)
+                2'd0: fl_clk <= 1'b0;
+                2'd2: begin fl_clk <= 1'b1; frx <= {frx[22:0], fl_miso}; end
+                2'd3: begin
+                    fbit <= fbit + 6'd1;
+                    if (fbit == {1'b0, frbits} - 6'd1) begin fst <= S_GAP; fgap <= 4'd0; end
+                end
+                default: ;
+            endcase
+        end
+
+        S_GAP: begin                // end of a command: clock low, chip select high for ~100 ns
+            fgap <= fgap + 4'd1;
+            if (fgap == 4'd0) fl_clk  <= 1'b0;
+            if (fgap == 4'd1) fl_cs_n <= 1'b1;
+            if (fgap == 4'd15) begin
+                fbit <= 6'd0; fph <= 2'd0;
+                if (fop == OP_ID) begin
+                    fl_id <= frx;
+                    if (frx[23:16] == 8'hEF && (frx[15:8] == 8'h40 || frx[15:8] == 8'h70) &&
+                        frx[7:0] == 8'h15)       fl_size <= 2'd1;        // W25Q16, 2 MB
+                    else if (frx[23:16] == 8'hEF && (frx[15:8] == 8'h40 || frx[15:8] == 8'h70) &&
+                        frx[7:0] == 8'h16)       fl_size <= 2'd2;        // W25Q32, 4 MB
+                    else                         fl_size <= 2'd0;        // unknown: no writes
+                    id_done <= 1'b1; fl_busy <= 1'b0; fst <= S_IDLE;
+                end else if (fstep == 2'd0) begin
+                    // write enable sent: now the sector erase or the page program command
+                    fstep <= 2'd1; frbits <= 5'd0; fst <= S_CMD;
+                    if (fop == OP_ERASE) begin fsh <= {8'h20, fop_addr, 8'h00};   fnbits <= 6'd32; end
+                    else                 begin fsh <= {8'h02, fop_addr, fop_data}; fnbits <= 6'd40; end
+                end else if (fstep == 2'd2 && !frx[0]) begin
+                    fl_busy <= 1'b0; fst <= S_IDLE;           // status: write finished
+                end else if (fto[26]) begin
+                    fl_busy <= 1'b0; fst <= S_IDLE;           // timeout: give up, do not hang
+                end else begin
+                    // command sent or flash still busy: read the status register (0x05)
+                    fstep <= 2'd2; fsh <= {8'h05, 32'd0}; fnbits <= 6'd8; frbits <= 5'd8;
+                    fst <= S_CMD;
+                end
+            end
         end
 
         S_DATA: begin               // receive bytes (sampled on the rising flash clock)
@@ -379,6 +516,15 @@ module fy_fpga #(
 
         default: fst <= S_IDLE;
         endcase
+
+        // timeout counter for erase/program (cleared in S_IDLE)
+        if (fst != S_IDLE && !fto[26]) fto <= fto + 27'd1;
+
+        // latch start requests (after the case statement: a new request wins over clearing)
+        if (regs[6'h12][0] && !r12_prev) p12 <= 1'b1;
+        if (regs[6'h0D][0] && !r0d_prev) p0d <= 1'b1;
+        if (regs[6'h11][0] && !r11_prev) p11 <= 1'b1;
+        if (regs[6'h13][0] && !r13_prev) p13 <= 1'b1;
 
         // advance the write address after every written sample
         if (w1_we || w2_we) w_addr <= w_addr + 13'd1;

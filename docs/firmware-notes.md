@@ -124,7 +124,7 @@ samples × 14 bit, little endian, **plain** – and answers `H` when it starts s
 when done or `E` if the address check fails. The firmware computes a flash address for the
 slot, checks it, erases four 4 KB sectors and passes the 16384 bytes unchanged to the FPGA
 (registers 0x17, 0x11, 0x16, 0x14, 0x13, 0x15 – see
-[fpga-design.md](fpga-design.md#future-extension-flash-writes)). The stock FPGA bit-permutes
+[fpga-design.md](fpga-design.md#flash-writes)). The stock FPGA bit-permutes
 every byte into the flash format when it writes it. This is the only place where the firmware
 writes waveform data to the SPI flash.
 
@@ -184,9 +184,11 @@ protection works on the wrapped address. A bigger flash alone therefore does not
 safe; units that ship with a W25Q32 must have a different, probably newer, stock bitstream.
 
 **With firmware 1.8.0 and the stock bitstream, upload custom waveforms only to slots 1–24**
-(or upload them with 1.4.2), and keep a backup of the flash. This project's bitstream
-currently ignores flash writes, so with it an upload cannot damage the flash (but is not
-stored either).
+(or upload them with 1.4.2), and keep a backup of the flash. This project's bitstream (from
+v0.19) stores uploads behind a write guard: it never writes below 0x05A000 or beyond the
+flash size. With 1.8.0 on a 2 MB flash it stores slots 1–24 and refuses slots 25–64 (the
+firmware still reports success); with a 4 MB W25Q32 all 64 slots work – see
+[fpga-design.md](fpga-design.md#flash-writes).
 
 The only other routine that writes to the SPI flash (0x0800B900 in 1.8.0, 0x0800B680 in
 1.4.2) stores data derived from the STM32 unique ID. It only runs if the bytes 0xA5/0x5A are

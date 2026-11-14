@@ -21,7 +21,7 @@ try {
     & (Tool "vlog") -quiet fy_fpga.v freq_counter.v (Get-ChildItem sim\tb_*.v | ForEach-Object { $_.FullName })
     if ($LASTEXITCODE -ne 0) { exit 1 }
     $fail = $false
-    foreach ($tb in @("tb_burst", "tb_manu", "tb_fm", "tb_ttl", "tb_adjp", "tb_spi")) {
+    foreach ($tb in @("tb_burst", "tb_manu", "tb_fm", "tb_ttl", "tb_adjp", "tb_spi", "tb_flash16", "tb_flash32", "tb_flashid")) {
         $out = & (Tool "vsim") -c -quiet -L altera_mf_ver -L lpm_ver $tb -do "run -all; quit -f" 2>&1 | Out-String
         $res = ($out -split "`n" | Where-Object { $_ -match "RESULT:" } | Select-Object -First 1)
         if (-not $res) { $res = "RESULT: no result (simulation error)" }

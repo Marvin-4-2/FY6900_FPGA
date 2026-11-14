@@ -20,7 +20,7 @@ B="${QUESTA_BIN:+$QUESTA_BIN/}"
 "${B}vlog" -quiet fy_fpga.v freq_counter.v sim/tb_*.v || exit 1
 
 fail=0
-for tb in tb_burst tb_manu tb_fm tb_ttl tb_adjp tb_spi; do
+for tb in tb_burst tb_manu tb_fm tb_ttl tb_adjp tb_spi tb_flash16 tb_flash32 tb_flashid; do
     out=$("${B}vsim" -c -quiet -L altera_mf_ver -L lpm_ver "$tb" -do "run -all; quit -f" 2>&1)
     res=$(echo "$out" | grep "RESULT:" | head -1)
     echo "$tb: ${res:-RESULT: no result (simulation error)}"

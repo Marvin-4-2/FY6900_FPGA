@@ -135,8 +135,8 @@ W25Q32 soldered into the V2.1 test unit:
 
 * The USB-Blaster programs and reads it as an **EPCS16**. That covers the first 2 MB; the
   second half stays as it is (empty on a new chip).
-* This project's bitstream (v0.18) runs from it. It reads the flash with full 24-bit
-  addresses.
+* This project's bitstream runs from it. It reads and (from v0.19) writes the flash with
+  full 24-bit addresses, so firmware 1.8.0 can use all 64 custom waveform slots.
 * The stock bitstream loads from it too, but uses only 21 address bits: its flash writes
   wrap around at 2 MB exactly as on the W25Q16. With the stock bitstream a W25Q32 therefore does
   **not** make firmware 1.8.0 safe. Units that ship with a W25Q32 probably come with a newer

@@ -175,9 +175,13 @@ switching the waveform hangs the unit. The flash can be restored with the USB-Bl
 usual.
 
 This matches the report that saving a custom waveform with 1.8.0 corrupts the flash
-([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)). Still open: whether the address
-wraps in the W25Q16 or already in the stock FPGA – the same test on a unit with a 4 MB W25Q32
-would show it.
+([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).
+
+**The wrap-around happens in the stock FPGA.** The same test with a 4 MB W25Q32 soldered into
+the test unit gave the same result: slot 48 landed at 0x05C000 and slot 25 at 0x1B0000, the
+bitstream stayed intact. The stock bitstream uses only 21 address bits (2 MB), and its
+protection works on the wrapped address. A bigger flash alone therefore does not make 1.8.0
+safe; units that ship with a W25Q32 must have a different, probably newer, stock bitstream.
 
 **With firmware 1.8.0 and the stock bitstream, upload custom waveforms only to slots 1–24**
 (or upload them with 1.4.2), and keep a backup of the flash. This project's bitstream

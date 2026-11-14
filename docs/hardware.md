@@ -28,7 +28,7 @@ was measured on one unit: **FY6900 60 MHz with FPGA board V2.1 and front panel b
 | Part | Function |
 |---|---|
 | Intel/Altera Cyclone IV E **EP4CE6E22C8N** (EQFP-144) | FPGA, 6272 LEs, 30 9-bit multipliers, 270 kbit block RAM |
-| **W25Q16JV** | 2 MB SPI flash: FPGA bitstream (Active Serial) + waveform tables |
+| **W25Q16JV** | 2 MB SPI flash: FPGA bitstream (Active Serial) + waveform tables. Some FY6900 revisions use a 4 MB **W25Q32** instead (see [below](#spi-flash-w25q16--w25q32)) |
 | 10.000 MHz **TCXO** | reference clock, FPGA pin 23 (CLK1) via series resistor |
 | 2 × Datel **DAC-1412** | 14-bit, up to 125 MSPS current-output DACs (CH1, CH2), straight binary, latch on the rising clock edge |
 | 2 × Microchip **MCP4822** | dual 12-bit DAC per channel: amplitude and offset |
@@ -123,3 +123,21 @@ Programming" mode (see [installation.md](installation.md)). The USB-Blaster does
 the board. With the case open, power the unit from the rear USB port with a USB power supply
 and leave the mains cable unplugged – that is enough for programming, and there is no mains
 voltage inside.
+
+## SPI flash (W25Q16 / W25Q32)
+
+The test unit has a W25Q16JV (2 MB). Some FY6900 revisions are fitted with a W25Q32 (4 MB);
+firmware 1.8.0 is laid out for such a flash (custom waveform slots up to 0x29FFFF, see
+[firmware-notes.md](firmware-notes.md#custom-waveform-upload)).
+
+A W25Q32 is a drop-in replacement: same SOIC-8 package, pinout and commands. Tested with a
+W25Q32 soldered into the V2.1 test unit:
+
+* The USB-Blaster programs and reads it as an **EPCS16**. That covers the first 2 MB; the
+  second half stays as it is (empty on a new chip).
+* This project's bitstream (v0.18) runs from it. It reads the flash with full 24-bit
+  addresses.
+* The stock bitstream loads from it too, but uses only 21 address bits: its flash writes
+  wrap around at 2 MB exactly as on the W25Q16. With the stock bitstream a W25Q32 therefore does
+  **not** make firmware 1.8.0 safe. Units that ship with a W25Q32 probably come with a newer
+  stock bitstream.

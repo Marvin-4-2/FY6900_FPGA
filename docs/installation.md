@@ -154,3 +154,18 @@ The bitstream in your flash dump is **not** proof of compatibility: the flash ca
 image from another unit – the V2.1 test unit carried the stock bitstream although it never
 worked on it. `fy6900_flash.py` identifies the bitstream only as a second check (and to
 catch bad reads); known bitstreams are listed in [known-bitstreams.md](known-bitstreams.md).
+
+### Units with a 4 MB flash (W25Q32)
+
+Some FY6900 revisions use a W25Q32 instead of the W25Q16 (see
+[hardware.md](hardware.md#spi-flash-w25q16--w25q32)). The procedure above works the same: the
+USB-Blaster accepts the W25Q32 as an EPCS16 (tested with a W25Q32 fitted to the V2.1 test
+unit). But an EPCS16 backup, `fy6900_flash.py` and the `.pof` cover **only the first 2 MB**:
+
+* With firmware 1.8.0 the custom waveform slots 25–64 lie above 2 MB (0x200000–0x29FFFF) and
+  are **not** in an EPCS16 backup.
+* Whether the Quartus Programmer erases the whole chip when it programs an EPCS16 `.pof` –
+  which would delete those slots – has not been tested. Save custom waveforms you need on the
+  PC before programming.
+* The FPGA board revision still decides compatibility; boards that come with a W25Q32 have
+  not been tested yet.

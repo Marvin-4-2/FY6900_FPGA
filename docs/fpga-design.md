@@ -230,6 +230,10 @@ Implementation notes:
   (see [firmware-notes.md](firmware-notes.md#custom-waveform-upload)). Read the flash size from
   the JEDEC ID (command `0x9F`: `EF 40 15` = W25Q16, 2 MB; `EF 40 16` = W25Q32, 4 MB) instead
   of building one bitstream per flash size, and allow no writes at all for an unknown ID.
+* **Use full 24-bit addresses.** Then a unit with a W25Q32 – fitted at the factory or
+  soldered in as an upgrade – can use all 64 custom slots of firmware 1.8.0. The stock
+  bitstream cannot: it wraps at 2 MB even on a W25Q32 (see
+  [hardware.md](hardware.md#spi-flash-w25q16--w25q32)).
 * Still report busy and ready as usual for a refused command, so that the upload ends
   normally instead of hanging the firmware.
 * Capture an upload from the PC software with the [sniffer](sniffer.md) (mode `a`) first and

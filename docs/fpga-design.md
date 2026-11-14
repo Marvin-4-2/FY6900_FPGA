@@ -186,19 +186,25 @@ low.
 The PC software uploads arbitrary waveforms to the STM32, which stores them in the SPI flash
 through the FPGA. This design currently ignores these writes, so an upload neither stores
 nor damages anything. The register sequence below was derived from the firmware (1.4.2,
-identical in 1.8.0) but has **not yet been confirmed with the sniffer**:
+identical in 1.8.0); its effect on the flash was confirmed with the stock bitstream (see
+[firmware-notes.md](firmware-notes.md#custom-waveform-upload)), the SPI traffic itself has not
+been captured with the sniffer yet:
 
 | Reg | Function (firmware view) |
 |---|---|
 | 0x17 | flash address (24 bit) |
 | 0x11 | pulse 1 → 0: erase the 4 KB sector at 0x17 |
-| 0x14 | data byte to program |
+| 0x14 | data byte to program – **plain**, the FPGA has to bit-permute it into the flash format |
 | 0x13 | pulse 1 → 0: program the byte from 0x14 at the current address; the address increments automatically |
 | 0x16 | 1 → 0: begin a write sequence, 0: finish / flush |
 | 0x15 | busy (polled with "read again" after every step) |
 
-A waveform slot is 16 KB: the firmware erases four sectors and then writes the 16384 bytes
-in the scrambled flash format (see [registers.md](registers.md#waveform-transfer-and-flash-access)).
+A waveform slot is 16 KB: the firmware erases four sectors and then writes the 16384 bytes of
+plain sample data (8192 × 14 bit, little endian) exactly as received from the PC. The stock
+FPGA stores every byte in the scrambled flash format – the inverse of the permutation it
+applies when it reads (see [registers.md](registers.md#waveform-transfer-and-flash-access)):
+data bit v0 goes to flash bit f5, v1 → f3, v2 → f6, v3 → f1, v4 → f0, v5 → f7, v6 → f2,
+v7 → f4.
 
 Implementation notes:
 
@@ -208,15 +214,23 @@ Implementation notes:
   RAM is faster.
 * Keep register 0x15 busy until the flash reports ready, so the firmware's polling paces the
   transfer.
-* **Protect the bitstream area:** refuse erase and program commands below 0x05A000. A stray
-  write there would leave the FPGA unconfigurable until the flash is reprogrammed with the
-  USB-Blaster or an SPI programmer.
-* **Refuse addresses at or above 0x200000** instead of passing them to the flash. Firmware
-  1.8.0 places the custom waveform slots at 0x1A0000–0x29FFFF (a layout for a 4 MB flash);
-  on the 2 MB W25Q16 slots 25–64 would wrap around into the bitstream (slots 25–47) and the
-  built-in waveforms of 1.4.2 (slots 48–64) – the likely cause of the reported flash
+* **Protect the whole bitstream area:** refuse erase and program commands below 0x05A000. A
+  stray write there leaves the FPGA unconfigurable until the flash is reprogrammed with the
+  USB-Blaster or an SPI programmer. The stock bitstream protects only the start of this area
+  (up to a limit between 0x008000 and 0x058000) – an upload to 1.8.0 slot 47 killed it on the
+  test unit.
+* **Refuse, do not redirect.** The stock bitstream replaces a protected address by 0x1B0000;
+  because that also happens to the sector erases, it damages custom slot 5. A refused
+  command must not touch the flash at all.
+* **Refuse addresses at or above the flash size** (2 MB on the W25Q16) instead of passing them
+  to the flash, where they wrap around. Firmware 1.8.0 places the custom waveform slots at
+  0x1A0000–0x29FFFF (a layout for a 4 MB flash); on the W25Q16 slots 25–64 wrap around into the
+  bitstream area and the built-in waveforms of 1.4.2 – the cause of the reported flash
   corruption with the stock bitstream
-  (see [firmware-notes.md](firmware-notes.md#custom-waveform-upload)). Still report busy and
-  ready as usual, so that a refused upload ends normally instead of hanging the firmware.
+  (see [firmware-notes.md](firmware-notes.md#custom-waveform-upload)). Read the flash size from
+  the JEDEC ID (command `0x9F`: `EF 40 15` = W25Q16, 2 MB; `EF 40 16` = W25Q32, 4 MB) instead
+  of building one bitstream per flash size, and allow no writes at all for an unknown ID.
+* Still report busy and ready as usual for a refused command, so that the upload ends
+  normally instead of hanging the firmware.
 * Capture an upload from the PC software with the [sniffer](sniffer.md) (mode `a`) first and
   compare it with the table above.

@@ -143,8 +143,8 @@ The built-in waveforms are in different places, too (read routine 0x0800F3A4 in 
 second area holds copies of the 0x60000 set (it is the area of 1.4.2's custom slots 1–32),
 which is why the built-in waveforms also work with 1.8.0. 1.8.0 never reads 0x60000–0xDFFFF.
 
-The W25Q16 ignores the address bits above 2 MB, so an address of 0x200000 or more wraps
-around to the start of the chip (expected from the device; not yet verified on a unit):
+On a unit with the 2 MB W25Q16 an address of 0x200000 or more wraps around to the start of
+the chip:
 
 | 1.8.0 slot | Address sent | Lands at | Effect |
 |---|---|---|---|
@@ -158,6 +158,15 @@ seem to work with 1.8.0 – it reads the slot back through the same wrapped addr
 destroy the built-in waveforms of 1.4.2, which shows only after going back to 1.4.2. This
 matches the report that saving a custom waveform with 1.8.0 corrupts the flash
 ([#2](https://github.com/Marvin-4-2/FY6900_FPGA/issues/2)).
+
+**Measured** on the test unit (FPGA board V2.1, W25Q16, stock bitstream, firmware 1.8.0):
+the firmware writes nothing to the flash at power-on; an upload to slot 1 changed exactly
+0x1A0000–0x1A3FFF, an upload to slot 48 exactly 0x05C000–0x05FFFF – wrapped around from
+0x25C000 as predicted. (Slot 48 was chosen because its wrapped address lies in the empty gap
+between the bitstream and the waveforms.) The stock bitstream's flash writes work on this
+board even though its DDS never starts. Still open: whether the address wraps in the
+W25Q16 or already in the stock FPGA – the same test on a unit with a 4 MB W25Q32 would show
+it.
 
 **With firmware 1.8.0 and the stock bitstream, upload custom waveforms only to slots 1–24**
 (or upload them with 1.4.2), and keep a backup of the flash. This project's bitstream

@@ -41,7 +41,17 @@ in step 4.
 The flash contains the FPGA bitstream **and your waveforms**. Keep the backup – it is the
 only way back to the original state.
 
-**Option A – SPI flash programmer:**
+**Option A – USB-Blaster** (the same tool as for programming, tested on a real unit):
+1. Power the unit (USB power supply on the rear USB port, mains cable unplugged) and plug the
+   USB-Blaster cable onto the header.
+2. In the Quartus Programmer select the USB-Blaster, mode **Active Serial Programming**,
+   **Add Device** EPCS16 (no file) and tick only **Examine**. Press **Start**.
+3. When the progress reaches 100 %, save the result as a `.pof` (Save File – in the File or
+   Edit menu or the context menu of the device row, depending on the Quartus version).
+4. Convert it: `python tools/fy6900_flash.py unpof backup.pof backup.bin`
+5. Read the flash a second time the same way and compare both `.bin` files.
+
+**Option B – SPI flash programmer** (e.g. CH341A):
 1. Power the unit (USB power supply on the rear USB port, mains cable unplugged) and pull
    **nCONFIG (header pin 5) to GND** through about 100 Ω.
    This holds the FPGA in reset and releases the flash lines.
@@ -50,11 +60,6 @@ only way back to the original state.
    unit is powered. (Alternatively use a SOIC-8 clip directly on the W25Q16 with the unit
    unpowered and the programmer supplying 3.3 V.)
 3. Read the W25Q16 (2 MB) twice and compare both reads. Then release nCONFIG.
-
-**Option B – USB-Blaster (not yet tested on a real unit):**
-1. In the Quartus Programmer select the USB-Blaster, mode **Active Serial Programming**,
-   add the device EPCS16 and tick **Examine**. Start and save the result as a `.pof`.
-2. Convert it: `python tools/fy6900_flash.py unpof backup.pof backup.bin`
 
 ## 3. Check the dump
 

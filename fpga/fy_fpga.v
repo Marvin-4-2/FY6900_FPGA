@@ -8,7 +8,7 @@
 //
 // Target:   FeelTech FY6900 (60 MHz), FPGA board V2.1, Intel/Altera Cyclone IV E EP4CE6E22C8N
 // Firmware: works with the stock STM32 front-panel firmware (tested with 1.8.0, 1.4.2 compatible)
-// Version:  0.19
+// Version:  0.20
 //
 // The design re-implements the register interface that the stock STM32 firmware expects from
 // the original FPGA bitstream. The firmware, its user interface and all of its menus stay
@@ -698,7 +698,7 @@ endmodule
 module dds_ch (
     input  wire        clk,
     input  wire        run,       // accumulator runs (PLL locked)
-    input  wire [63:0] freq,      // frequency in 0.1 Hz units (registers 0x06:0x07 / 0x08:0x09)
+    input  wire [63:0] freq,      // {0x06, 0x07} / {0x08, 0x09}: {uHz remainder, 0.1 Hz units}, see f2inc
     input  wire [34:0] kfreq,     // frequency constant (calibration, default 0x3_6F9B_FB3B)
     input  wire        ph_load,   // pulse: load the phase accumulator with ph_val
     input  wire [19:0] ph_val,    // start phase, 20 bit, 2^20 = 360 deg (registers 0x0A / 0x0B)
@@ -716,7 +716,7 @@ module dds_ch (
     input  wire [6:0]  mod_mode,  // register 0x21: b0 PSK, b1 FSK, b2 ASK, b3 AM, b4 external source, b5 FM, b6 PM
     input  wire [13:0] mod_sig,   // internal modulation signal = CH2 DAC value (centre 0x2000)
     input  wire [11:0] am_depth,  // register 0x2E: AM depth, firmware writes depth[0.1 %] * 2047 / 2000
-    input  wire [63:0] mod_freq,  // {reg 0x1E, reg 0x20}: FM deviation or FSK hop frequency in 0.1 Hz
+    input  wire [63:0] mod_freq,  // {reg 0x1E, reg 0x20}: FM deviation or FSK hop frequency, same format
     input  wire [17:0] pm_dev,    // register 0x36: PM deviation ("BIAS" in the menu), 2^17 = 360 deg
     input  wire [23:0] bsrc_n,    // register 0x19: [19:0] burst count, [23:20] source + 1 (0 = none)
     input  wire        manu,      // register 0x18 bit 0: MANU key (pressed = 0), burst trigger 0 -> 1
@@ -1144,30 +1144,63 @@ endmodule
 
 
 // =====================================================================================
-// f2inc - frequency (0.1 Hz units, 64 bit) to 48-bit phase increment at 125 MHz
-//   inc = (F * k) >> 16, default k = round(2^64 / (10 * 125e6)) = 0x3_6F9B_FB3B
-//   Sequential shift-and-add over the 35 bits of k; a new result every 37 clocks
+// f2inc - frequency in the firmware's split decimal format to a 48-bit phase increment
+//   The firmware does NOT send a 64-bit binary number. It keeps a frequency as two words:
+//     freq[31:0]  (registers 0x07 / 0x09 / 0x20): frequency in 0.1 Hz units
+//     freq[63:32] (registers 0x06 / 0x08 / 0x1E): the remainder below 0.1 Hz in uHz, 0..99999
+//   (digit routine 0x0800C8BC in firmware 1.4.2; carry at 100000). Example: 1.234567 Hz is
+//   sent as 0x07 = 12, 0x06 = 34567.
+//   The remainder is turned into 20 binary fraction bits of 0.1 Hz with one constant multiply,
+//     frac = hi * 171799 >> 14 = hi * 2^20 / 100000   (error < 2 LSB = 0.2 uHz, frac < 2^20)
+//   and appended to the 0.1 Hz part: F = {lo, frac} in units of 0.1 Hz / 2^20. Then
+//     inc = (F * k) >> 36,  default k = round(2^64 / (10 * 125e6)) = 0x3_6F9B_FB3B
+//   with a sequential shift-and-add over the 35 bits of k; a new result every 38 clocks
 //   (the firmware changes frequencies far less often than that, sweeps included).
+//   lo is limited to 30 bits (107 MHz), more than any FY6900 model can output.
 // =====================================================================================
 module f2inc (
     input  wire        clk,
-    input  wire [63:0] freq,
-    input  wire [34:0] k,         // inc = freq * k >> 16
+    input  wire [63:0] freq,      // {uHz remainder, frequency in 0.1 Hz}
+    input  wire [34:0] k,         // inc = F * k >> 36
     output reg  [47:0] inc = 48'd0
 );
+    // remainder below 0.1 Hz -> 20 fraction bits (embedded 18x18 multiplier, registered)
+    reg [34:0] frac_p = 35'd0;
+    always @(posedge clk) frac_p <= freq[48:32] * 18'd171799;
+    wire [49:0] fq = {freq[29:0], frac_p[33:14]};
+
+    // 85-bit accumulator split into two halves for timing at 125 MHz. The bit of k only
+    // enables a step (as a clock enable, not as data). The carry of the low half (bits 42:0)
+    // stays pending in acc_cy and is added to the high half (bits 84:43) at the next enabled
+    // step; one extra clock at the end adds the last pending carry. The result is identical
+    // to a plain 85-bit sum.
     reg [5:0]  mi = 6'd0;
-    reg [79:0] macc = 80'd0, msh = 80'd0;
+    reg [84:0] msh = 85'd0;
+    reg [42:0] acc_lo = 43'd0;
+    reg [41:0] acc_hi = 42'd0;
+    reg        acc_cy = 1'b0;
+    wire [43:0] lo_sum = {1'b0, acc_lo} + {1'b0, msh[42:0]};
     always @(posedge clk) begin
         if (mi == 6'd0) begin
-            msh  <= {16'd0, freq};
-            macc <= 80'd0;
-            mi   <= 6'd1;
+            msh    <= {35'd0, fq};
+            acc_lo <= 43'd0;
+            acc_hi <= 42'd0;
+            acc_cy <= 1'b0;
+            mi     <= 6'd1;
         end else if (mi <= 6'd35) begin
-            if (k[mi - 6'd1]) macc <= macc + msh;
-            msh <= msh << 1;
-            mi  <= mi + 6'd1;
+            if (k[mi - 6'd1]) begin
+                acc_lo <= lo_sum[42:0];
+                acc_hi <= acc_hi + msh[84:43] + {41'd0, acc_cy};
+                acc_cy <= lo_sum[43];
+            end
+            msh    <= msh << 1;
+            mi     <= mi + 6'd1;
+        end else if (mi == 6'd36) begin
+            acc_hi <= acc_hi + {41'd0, acc_cy};      // last carry
+            acc_cy <= 1'b0;
+            mi     <= 6'd37;
         end else begin
-            inc <= macc[63:16];
+            inc <= {acc_hi[40:0], acc_lo[42:36]};    // = (F * k)[83:36]
             mi  <= 6'd0;
         end
     end

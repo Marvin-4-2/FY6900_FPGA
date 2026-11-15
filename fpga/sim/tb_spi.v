@@ -62,6 +62,20 @@ module tb_spi;
         else $display("PASS %0s: K = %h", what, k);
     end endtask
 
+    // frequency in the firmware's split format -> expected phase increment (with the current K)
+    task fchk(input [7:0] a_hi, input [7:0] a_lo, input [31:0] lo, input [31:0] hi,
+              input integer which, input [255:0] what);
+        real f01, expv, got; begin
+        fpga_write(a_lo, lo); fpga_write(a_hi, hi); #3000;
+        f01  = lo + hi / 100000.0;                        // frequency in 0.1 Hz units
+        expv = f01 * dut.kfreq / 65536.0;                 // inc = F * K >> 16
+        got  = (which == 0) ? dut.u_ch1.inc : (which == 1) ? dut.u_ch2.inc : dut.u_ch1.inc2;
+        n_check = n_check + 1;
+        if (got - expv > 2.0 || expv - got > 2.0) begin
+            $display("FAIL %0s: inc = %0.1f, expected %0.1f", what, got, expv); n_fail = n_fail + 1;
+        end else $display("PASS %0s: inc = %0.1f (expected %0.1f)", what, got, expv);
+    end endtask
+
     reg [31:0] rv;
     integer k;
     reg ttl1_early_d0 = 0; always @(posedge dut.clk) ttl1_early_d0 <= dut.ttl1_early;
@@ -107,6 +121,16 @@ module tb_spi;
         kchk(64'h0000_E7EB_D06A_F000, 35'h3_5E5C_B008, "X = 10.2 MHz (limit)");
         kchk(64'h0001_0000_0000_0000, 35'h3_6F9B_FB3B, "implausible value -> default");
         kchk(64'h0000_E35F_A931_A000, 35'h3_6F9B_FB3B, "back to 10 MHz");
+
+        // Frequency format of the firmware: low word = 0.1 Hz units, high word = remainder
+        // below 0.1 Hz in uHz (0..99999). Before v0.20 the pair was read as one 64-bit binary
+        // number, so any digit below 0.1 Hz made the frequency jump.
+        fchk(8'h06, 8'h07, 32'd12,          32'd34567, 0, "CH1 1.234567 Hz");
+        fchk(8'h06, 8'h07, 32'd600_000_000, 32'd99999, 0, "CH1 60 000 000.099999 Hz");
+        fchk(8'h06, 8'h07, 32'd0,           32'd1,     0, "CH1 1 uHz");
+        fchk(8'h06, 8'h07, 32'd10_000,      32'd0,     0, "CH1 1 kHz (no remainder)");
+        fchk(8'h08, 8'h09, 32'd123_456_789, 32'd12345, 1, "CH2 12 345 678.912345 Hz");
+        fchk(8'h1E, 8'h20, 32'd12_345,      32'd6789,  2, "FM/FSK 1234.506789 Hz");
         if (n_fail == 0) $display("RESULT: PASS (%0d checks)", n_check);
         else             $display("RESULT: FAIL (%0d of %0d checks failed)", n_fail, n_check);
         $finish;

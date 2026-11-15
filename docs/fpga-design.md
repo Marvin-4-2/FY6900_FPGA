@@ -17,7 +17,7 @@ Source: [`fpga/fy_fpga.v`](../fpga/fy_fpga.v) (top level, `dds_ch`, `f2inc`, `mc
                                                               └─> relays; MCP4822 drivers (10 MHz domain)
 ```
 
-Resource use (v0.19): about 94 % of the logic elements, 22 of 30 multipliers, both wave RAMs
+Resource use (v0.20): about 95 % of the logic elements, 28 of 30 multipliers, both wave RAMs
 in M9K blocks; timing is met at 125 MHz with a small margin (~0.3 ns, slow 85 °C model).
 
 ## Clock domains
@@ -67,8 +67,11 @@ constraints are in [`fpga/fy_fpga.sdc`](../fpga/fy_fpga.sdc).
 
 ### Frequency and phase
 
-* `f2inc` converts the 64-bit frequency (0.1 Hz units) into a 48-bit phase increment:
-  `inc = F · K >> 16` by sequential shift-and-add (new value every 37 clocks).
+* `f2inc` converts the frequency – the firmware sends 0.1 Hz units plus a remainder in µHz,
+  see [registers.md](registers.md#0x060x07--0x080x09--frequency) – into a 48-bit phase
+  increment: the remainder becomes 20 fraction bits (one embedded multiplier), then
+  `inc = F · K >> 36` by sequential shift-and-add with a split accumulator (new value every
+  38 clocks).
   Resolution: 125 MHz / 2^48 ≈ 0.44 µHz.
 * 48-bit phase accumulator; the wave RAM is addressed with the upper 13 bits.
 * `ph_load` (write to 0x2F, or Sync IN edge in uplink slave mode) loads the start phase.

@@ -20,8 +20,8 @@ see [calibration.md](calibration.md)).
 | 0x03 | R | counter status | yes |
 | 0x04 | W | waveform mode CH1/CH2 | yes |
 | 0x05 | W | output enable, uplink, counter input, range relays | yes |
-| 0x06:0x07 | W | CH1 frequency (64 bit) | yes |
-| 0x08:0x09 | W | CH2 frequency (64 bit) | yes |
+| 0x06:0x07 | W | CH1 frequency (µHz remainder : 0.1 Hz) | yes |
+| 0x08:0x09 | W | CH2 frequency (µHz remainder : 0.1 Hz) | yes |
 | 0x0A / 0x0B | W | CH1 / CH2 start phase | yes |
 | 0x0C | R | flash byte read result | yes |
 | 0x0D | W | flash byte read strobe | yes |
@@ -38,7 +38,7 @@ see [calibration.md](calibration.md)).
 | 0x1A, 0x1C | W | authentication: response | ignored |
 | 0x1B | R | authentication: challenge data | returns 0 |
 | 0x1D | W | Adj-Pulse width (CH1) | yes |
-| 0x1E:0x20 | W | FM deviation / FSK hop frequency (64 bit) | yes |
+| 0x1E:0x20 | W | FM deviation / FSK hop frequency (same format) | yes |
 | 0x1F | R | FPGA ID | returns 0x10 |
 | 0x21 | W | modulation mode | yes |
 | 0x22:0x23 | W | reference: 25·X in µHz (64 bit) | yes (frequency calibration) |
@@ -57,9 +57,9 @@ see [calibration.md](calibration.md)).
 | 0x36 | W | PM deviation ("BIAS") | yes |
 | 0x3A | R | FPGA ID / version | returns 0x00FB6910 |
 
-64-bit values are split into two registers: the lower address holds the upper 32 bits
-(e.g. 0x06 = high word, 0x07 = low word; for the modulation frequency 0x1E = high,
-0x20 = low).
+Values that need more than 32 bits are split into two registers; the lower address holds
+the upper part (e.g. 0x06 = high, 0x07 = low; for the modulation frequency 0x1E = high,
+0x20 = low). For **frequencies the two parts are decimal, not binary** – see below.
 
 ## Signal generation
 
@@ -102,9 +102,18 @@ writes reg 0x05 repeatedly and ramps the amplitude up again – that is the rela
 
 ### 0x06:0x07 / 0x08:0x09 – frequency
 
-64-bit frequency in units of **0.1 Hz** (e.g. 1 kHz = 10000). The FPGA converts it into a
-48-bit phase increment at 125 MHz: `inc = F · K >> 16` with `K = 0x3_6F9B_FB3B` for
-X = 10 MHz (see 0x22:0x23).
+The firmware keeps a frequency as two decimal parts (digit routine 0x0800C8BC in 1.4.2):
+
+| Register | Content |
+|---|---|
+| 0x07 / 0x09 (low) | frequency in units of **0.1 Hz** (e.g. 1 kHz = 10000) |
+| 0x06 / 0x08 (high) | the remainder below 0.1 Hz in **µHz**, 0 … 99999 |
+
+Example: 1.234567 Hz = 0x07 12, 0x06 34567. The FPGA turns the remainder into 20 binary
+fraction bits (`hi × 171799 >> 14`, error < 0.2 µHz) and computes the 48-bit phase increment
+at 125 MHz as `inc = {lo, fraction} · K >> 36` with `K = 0x3_6F9B_FB3B` for X = 10 MHz (see
+0x22:0x23). Up to v0.19 the pair was read as one 64-bit binary number, so any digit below
+0.1 Hz made the frequency jump (to above 40 MHz).
 
 ### 0x0A / 0x0B, 0x2F – start phase
 
@@ -174,8 +183,8 @@ selected and pulses 0x18 – the burst is armed but silent until OK writes the r
 
 ### 0x1E:0x20 – FM deviation / FSK hop frequency
 
-64-bit value in 0.1 Hz units (same scale as the carrier frequency). FM: peak deviation for
-full-scale modulation. FSK: frequency while keyed.
+Same format as the carrier frequency (0x20 = 0.1 Hz units, 0x1E = µHz remainder). FM: peak
+deviation for full-scale modulation. FSK: frequency while keyed.
 
 ### 0x2E – AM depth
 

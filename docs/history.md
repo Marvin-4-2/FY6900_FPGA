@@ -84,6 +84,7 @@ that the stock firmware and its user interface can stay unchanged.
 | v0.18 | **frequency calibration**: the DDS constant is derived from the reference registers, so the hidden calibration menu works for the generator and the counter |
 | – | after the release: a user reported that saving a custom waveform with firmware 1.8.0 corrupts the flash. The firmware analysis and tests with the stock bitstream showed why – 1.8.0 lays out its slots for a 4 MB flash, the original FPGA wraps at 2 MB and protects only part of the bitstream – and the unit was deliberately "killed" with an upload to slot 47 to prove it |
 | v0.19 | **guarded flash writes**: custom waveform upload works; the flash size comes from the JEDEC ID, nothing is written below 0x05A000 or beyond the flash size. Tested with a W25Q32 soldered in |
+| v0.20 | **frequency fix**: the firmware sends frequencies as two decimal parts (0.1 Hz + µHz remainder); v0.19 read them as one binary number, so any digit below 0.1 Hz made the frequency jump. Found by a user, fixed and tested on the unit |
 
 Finally all 144 FPGA pins were mapped from high-resolution photos of the two-layer board:
 the 25 unused I/Os are not connected, so nothing in the signal path is left uncontrolled.

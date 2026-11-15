@@ -42,7 +42,8 @@ QUESTA_BIN=/path/to/questa_fse/win64 fpga/sim/run_all.sh
 powershell -File fpga\sim\run_all.ps1 -QuestaBin C:\path\to\questa_fse\win64
 ```
 
-Expected result for v0.19:
+Expected result for v0.20 (not yet run – the simulator licence was unavailable at release time;
+the six new frequency checks in `tb_spi` are the ones still to be confirmed):
 
 ```
 tb_burst: RESULT: PASS (15 checks)
@@ -50,7 +51,7 @@ tb_manu: RESULT: PASS (6 checks)
 tb_fm: RESULT: PASS (3 checks)
 tb_ttl: RESULT: PASS (4 checks)
 tb_adjp: RESULT: PASS (9 checks)
-tb_spi: RESULT: PASS (25 checks)
+tb_spi: RESULT: PASS (31 checks)
 tb_flash16: RESULT: PASS (13 checks)
 tb_flash32: RESULT: PASS (14 checks)
 tb_flashid: RESULT: PASS (12 checks)

@@ -83,7 +83,7 @@ carried the known stock bitstream although that bitstream never worked on it).
 Pass the revision printed on your FPGA board with `--board`:
 
 ```
-python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.19.rbf patched.bin --board V2.1
+python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.20.rbf patched.bin --board V2.1
 ```
 
 * **V2.1 or V1.9:** tested, the tool patches.

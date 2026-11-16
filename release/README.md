@@ -27,9 +27,9 @@ compile with Quartus Prime 25.1 Lite reproduces it bit for bit.
 Frequency fix: the firmware sends a frequency as 0.1 Hz units plus the remainder in µHz
 (two decimal parts, not one binary number). Up to v0.19 any digit below 0.1 Hz made the
 frequency jump (to above 40 MHz); now all digits down to 1 µHz work – carrier CH1/CH2, FM
-deviation and FSK hop frequency. Tested on the V2.1 unit and with a bit-accurate model of the
-new conversion; the testbenches have not been re-run for v0.20 yet (simulator licence).
-Everything else as in v0.19.
+deviation and FSK hop frequency. Tested on the V2.1 unit, with a bit-accurate model of the new
+conversion and with all testbenches (107 checks, including six new frequency checks in
+`tb_spi`). Everything else as in v0.19.
 
 ## v0.19
 

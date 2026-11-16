@@ -42,8 +42,7 @@ QUESTA_BIN=/path/to/questa_fse/win64 fpga/sim/run_all.sh
 powershell -File fpga\sim\run_all.ps1 -QuestaBin C:\path\to\questa_fse\win64
 ```
 
-Expected result for v0.20 (not yet run – the simulator licence was unavailable at release time;
-the six new frequency checks in `tb_spi` are the ones still to be confirmed):
+Expected result for v0.20 (107 checks):
 
 ```
 tb_burst: RESULT: PASS (15 checks)

@@ -25,13 +25,30 @@ X = 10 000 000 × reading / 10^9. Calibrating against a typical oscilloscope tim
 
 ## Analog (trimmers)
 
-Each channel has three trimmers (silkscreen names on FPGA board V2.1):
+Each channel has three trimmers. Their function was determined on CH1 of the test unit
+(FPGA board V2.1) by turning each one by 1/8 turn; CH2 has the same arrangement and was
+adjusted with the same procedure.
 
-| Function | CH1 | CH2 |
-|---|---|---|
-| Offset | W2 | W1 |
-| Symmetry | W26 | W16 |
-| Amplitude | W5 | W3 |
+| CH1 | CH2 | Acts on | 1/8 turn clockwise (CH1) |
+|---|---|---|---|
+| W26 | W16 | gain of one DAC output half – the **high** level of a square wave | +8 % |
+| W5 | W3 | gain of the other DAC half – the **low** level – together with the offset and the zero; the W26/W16 half changes less | about −37 %, very sensitive |
+| W2 | W1 | zero (shifts the whole output) | +16 mV |
+
+The DAC-1412 has two complementary current outputs, and the output stage amplifies their
+difference. One half passes W26 (W16); W5 (W3) acts like the feedback resistor of the
+amplifier input that receives the other half together with the offset voltage from the
+MCP4822. If the two halves have different gains, the centre of the waveform moves with the
+amplitude. For a set amplitude A at offset 0, with the zero z and the gains g₁ (W26 half)
+and g₂ (W5 half):
+
+* high level = z + g₁ · A/2
+* low level = z − g₂ · A/2
+* mean value (what a DMM on V DC shows for a sine) = z + (g₁ − g₂) · A/4
+
+So each half has a reading of its own, and the zero follows from the mean at two
+amplitudes. The DC waveform outputs the DAC centre, so its reading at offset 0 also contains
+the balance error until the two halves are equal – don't use it to set the zero.
 
 The FPGA does not apply any analog correction: amplitude and offset come from the MCP4822
 codes written by the firmware.
@@ -40,7 +57,7 @@ codes written by the firmware.
 normally takes from its configuration in the SPI flash. Firmware 1.8.0 on a V1.9 / V2.1 board
 whose flash still has the original layout falls back to defaults made for other hardware:
 **every offset comes out about 37 % too high**, and the trimmers cannot correct that. Use
-firmware 1.4.2 on these boards for an offset that is right – see
+firmware 1.4.2 on these boards – see
 [firmware-notes.md](firmware-notes.md#offset-and-amplitude-scaling). The amplitude is not
 affected.
 
@@ -48,59 +65,59 @@ affected.
 
 * Photograph or mark the current trimmer positions.
 * Let the unit warm up for about 15 minutes.
-* Measure into high impedance (DMM or 1 MΩ scope input), not into 50 Ω.
-* Use a DMM for DC levels. A square wave at 0.1 Hz lets the DMM read the high and the low
-  level directly.
+* Measure into high impedance with a DMM on V DC, not into 50 Ω. Read levels with the DMM;
+  the cursors of a typical oscilloscope are not accurate enough.
+* W5 and W3 are very sensitive: move them by a few degrees at a time.
 
-### Step 1 – characterise
+### Procedure (per channel)
 
-Per channel. The middle range covers amplitudes up to 5 Vpp and offsets up to ±2.5 V (with
-peak + |offset| ≤ 3.5 V); the points marked "large" switch to the large range:
+1. **Find the zero.** Sine 1 kHz, offset 0, DMM on V DC. Read **a** at 1 Vpp and **b** at
+   4 Vpp. The zero is **z = (4a − b) / 3**.
+2. **Set the two halves.** Square 0.01 Hz, 4 Vpp, offset 0 – each level lasts 50 s, enough to
+   turn a trimmer while watching the DMM (frequencies below 0.1 Hz need v0.20 or later; with
+   older versions use 0.1 Hz):
+   * low phase: **W5** (CH2: **W3**) until the DMM shows **z − 2.000 V**,
+   * high phase: **W26** (CH2: **W16**) until it shows **z + 2.000 V**,
+   * repeat both once, because W5 (W3) also moves the other half a little.
+3. **Set the zero.** Sine 1 kHz, 4 Vpp, offset 0: **W2** (CH2: **W1**) until the DMM shows
+   **0.000 V**. With equal halves the mean no longer depends on the amplitude, so this is the
+   zero for every amplitude.
+4. **Check.** Sine 1 Vpp and 4 Vpp: both 0.000 V. Square 4 Vpp: −2.000 / +2.000 V. Then the
+   offset (DC ±1 V, and ±3 V for the large range) and a square with 10 Vpp (large range).
 
-| Setting | Measured |
+4 Vpp is the largest round amplitude of the middle range that is not affected by the
+deviation at 5 Vpp (see below).
+
+### What the trimmers cannot correct
+
+* **Offset gain:** W5 (W3) changes the offset and its DAC half in a fixed ratio. On the test
+  unit (CH1) the offset gain is 0.990 × the gain of that half, so with the amplitude exact the
+  offset is about **1 % low** (10 mV per volt). The ratio comes from the circuit and the
+  firmware's offset coefficient. The error can be split instead (amplitude about +0.5 %,
+  offset about −0.5 %).
+* **The 1.8.0 offset coefficients** (+37 %, see above).
+* **5 Vpp:** in the middle range a setting of 5 Vpp comes out about **4.5 % larger** than
+  1–4 Vpp. This was measured at two different trimmer settings (originally 1–4 Vpp within
+  0.2 % and 5.22 Vpp for 5 Vpp; later +4.1 % and +8.9 %). The firmware's amplitude code is
+  strictly proportional to the amplitude
+  ([firmware-notes.md](firmware-notes.md#offset-and-amplitude-scaling)), so the cause is in
+  the analog path. Where the deviation begins between 4 and 5 Vpp has not been measured yet.
+
+### Results on the test unit
+
+Before the adjustment – CH1, firmware 1.4.2, trimmers moved during earlier experiments,
+Fluke 177 into high impedance:
+
+| Quantity | Measured |
 |---|---|
-| DC, offset −1 V / 0 V / +1 V | |
-| DC, offset −3 V / +3 V (large) | |
-| square 0.1 Hz, offset 0, 1 / 2 / 3 / 4 / 5 Vpp: high / low | |
-| square 0.1 Hz, offset 0, 10 Vpp (large): high / low | |
-| square 0.1 Hz, 1 Vpp, offset +1 V: high / low | |
+| zero (extrapolated from the sine means) | −49 mV |
+| centre of the waveform | moves by +12.6 mV per Vpp – the two halves differed by 4.8 % |
+| offset gain, middle range (DC ±1 V) / large range (DC ±3 V) | 1.012 / 1.0125 |
+| amplitude 1–4 Vpp / 10 Vpp (large range) | +4.1 % / +3.6 % |
+| amplitude 5 Vpp | +8.9 % |
+| centre of the large range (DC ±3 V) | −186 mV |
 
-The DC series gives the zero error and the gain of the offset path, the square series the
-amplitude gain and the symmetry (|high| vs. |low| around the offset). Read the levels of the
-square wave with the DMM, not with the oscilloscope – the scope's cursors are not accurate
-enough for this.
-
-### Step 2 – find out what each trimmer does
-
-Turn one trimmer by a small, defined amount (e.g. 1/8 turn), repeat one DC point (offset
-0 V) and one square point (5 Vpp), note what moved, and turn it back.
-
-### Step 3 – adjust
-
-Typical order for this kind of output stage (confirm with step 2):
-
-1. Offset trimmer: DC offset 0 V → 0.000 V.
-2. Symmetry trimmer: square with offset 0 → |high| = |low|.
-3. Amplitude trimmer: square 10 Vpp → high − low = 10.00 V.
-4. Repeat 1–3 once (they interact), then check the DC series and the small/large ranges.
-
-Errors the trimmers cannot remove (for example a gain error of the offset path) come from
-the firmware's coefficients (see above). Reports with measurement series are welcome.
-
-### Results on the test unit (so far)
-
-FPGA board V2.1, CH1, firmware 1.8.0, Fluke 177 into high impedance:
-
-| Point | Result |
-|---|---|
-| zero (DC 0 V) | +5 mV |
-| offset path, middle range (DC ±1 V) | 1.347 V per volt: +35 % – firmware coefficient, see above |
-| offset path, large range (DC ±3 V) | 1.376 V per volt: +38 % – firmware coefficient |
-| amplitude 1 / 2 / 3 / 4 Vpp (middle) | 1.000 / 2.000 / 3.003 / 4.009 Vpp: within 0.2 % |
-| amplitude 5 Vpp (middle) | 5.22 Vpp: +4.4 % – the firmware's code is linear, so this is the analog path at 90 % of the DAC reference |
-| amplitude 10 Vpp (large) | 10.028 Vpp: +0.3 % |
-| range switch | the relay clicks just above 5 Vpp |
-
-Trimmer behaviour found so far: **W2 ("Offset") moves both the zero and the gain of the
-offset path** – it is not a pure zero trimmer, and its range is far too small for the 37 %
-of the firmware coefficient. W26, W5 and channel 2 have not been characterised yet.
+After the adjustment (16 November 2026): both channels set to the targets of steps 2 and 3;
+the 4 Vpp sine reads 1.414 Vrms on the DMM's AC range. A complete measurement series after
+the adjustment – in particular the large range – is still to be done. Reports with
+measurement series from other units are welcome.

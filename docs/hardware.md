@@ -70,10 +70,14 @@ specified up to 125 MSPS; the original design ran its DDS at 250 MHz (reference 
 * MCP4822 **amplitude** output → 300 Ω / 499 Ω divider → DAC REFI/O. MCP4822 gain 1×.
 * MCP4822 **offset** output (gain 2×, centre code 0x7FF) → offset input of the output stage.
 * CH1: VOUTA = offset, VOUTB = amplitude. **CH2: swapped** (VOUTA = amplitude, VOUTB = offset).
-* Range relays per channel: "large" (gain, from about 6 Vpp) and "small" (attenuator, up to
-  about 350 mV); both off = middle range. CMOS and pulse are unipolar waveforms: the DAC
-  only uses the upper half (mid scale … full scale) and the firmware doubles the amplitude.
-* Trimmers per channel: offset, symmetry, amplitude (see [calibration.md](calibration.md)).
+* Range relays per channel: "large" (gain, above 5 Vpp) and "small" (attenuator, up to
+  about 350 mV); both off = middle range – the exact rule is in
+  [firmware-notes.md](firmware-notes.md#output-range-0x05-bits-30). CMOS and pulse are
+  unipolar waveforms: the DAC only uses the upper half (mid scale … full scale) and the
+  firmware doubles the amplitude.
+* Trimmers per channel: gain of one DAC output half (W26 / W16), output stage gain for the
+  other half and the offset (W5 / W3), zero (W2 / W1) – see
+  [calibration.md](calibration.md#analog-trimmers).
 
 ## Rear panel and other I/O
 

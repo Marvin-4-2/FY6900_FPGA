@@ -127,7 +127,9 @@ builds a bitstream identical to [`release/fy6900_fpga_v0.20.rbf`](release). Test
 
 ## Roadmap
 
-* Analog calibration data for the trimmers (measurement series welcome).
+* Find the cause of the 4.5 % amplitude deviation at 5 Vpp in the middle range
+  ([calibration.md](docs/calibration.md#what-the-trimmers-cannot-correct)); trimmer
+  measurement series from other units are welcome.
 
 ## Contributing
 

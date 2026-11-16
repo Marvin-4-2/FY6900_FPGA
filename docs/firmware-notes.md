@@ -56,7 +56,7 @@ unchanged (CH1 offset code: 0x08012466 in 1.8.0, 0x08011EDC in 1.4.2).
 |---|---|---|
 | small | 0x7FF + offset[mV] × 2047 / 250 × F_1x | amplitude × 4095 × 0.9 / 0.5 Vpp |
 | middle | 0x7FF + offset[mV] × 2047 / 2500 × F_1x | amplitude × 4095 × 0.9 / 5 Vpp |
-| large | 0x7FF + offset[mV] × 0.2047 × F_4x | amplitude × 4095 × 0.9 / 24 Vpp (very large amplitudes use another factor) |
+| large | 0x7FF + offset[mV] × 0.2047 × F_4x | amplitude × 4095 × 0.9 / 24.25 Vpp (very large amplitudes use another factor) |
 
 The amplitude scaling is identical in 1.4.2 and 1.8.0. The offset uses a **coefficient per
 channel and range** ("XISHU", Chinese for coefficient): F_1x for the small and the middle
@@ -76,9 +76,10 @@ configuration block, so 1.8.0 uses its defaults. On the test unit (FPGA board V2
 1.8.0) a set offset of +1 V gave 1.35 V and +3 V gave 4.11 V – **+35 % and +38 %**, exactly
 the ratio of the defaults. 1.8.0's defaults evidently belong to newer hardware whose
 per-unit values are stored in the configuration block. The analog trimmers cannot
-compensate this (the offset trimmer of the test unit reached its end stop); with **firmware
-1.4.2** the offset is expected to be correct within about 2 %. The waveform amplitude is not
-affected.
+compensate this: the trimmer that sets the offset gain changes the amplitude of one DAC half
+in a fixed ratio with it (see [calibration.md](calibration.md#analog-trimmers)). With
+**firmware 1.4.2** the offset of the test unit is about 1 % low once the amplitude is adjusted
+exactly. The waveform amplitude is not affected.
 
 1.8.0 contains a factory calibration for these coefficients: the UART commands
 `CH11XISHU`, `CH14XISHU`, `CH21XISHU` and `CH24XISHU` (channel 1/2, 1× = middle, 4× = large

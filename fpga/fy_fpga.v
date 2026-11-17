@@ -8,7 +8,7 @@
 //
 // Target:   FeelTech FY6900 (60 MHz), FPGA board V2.1, Intel/Altera Cyclone IV E EP4CE6E22C8N
 // Firmware: works with the stock STM32 front-panel firmware (tested with 1.8.0, 1.4.2 compatible)
-// Version:  0.20
+// Version:  0.21
 //
 // The design re-implements the register interface that the stock STM32 firmware expects from
 // the original FPGA bitstream. The firmware, its user interface and all of its menus stay
@@ -21,7 +21,10 @@
 //   - SPI flash controller (W25Q16 / W25Q32): loads waveforms into the wave RAMs, answers
 //     single-byte reads for the STM32 and stores uploaded custom waveforms (sector erase, byte
 //     program) behind a write guard that protects the bitstream area and never wraps around
-//   - two DDS channels (module dds_ch) at 125 MSPS with 48-bit phase accumulators:
+//   - two DDS channels (module dds_ch) with 48-bit phase accumulators at 125 MHz that deliver
+//     two samples per clock: the DACs run at 250 MSPS like in the original design, so the
+//     output filter on the board removes the images (at 125 MSPS a 60 MHz sine came with an
+//     image at 65 MHz):
 //       table waveforms (8192 x 14 bit), square/rectangle with sub-sample edge interpolation,
 //       trapezoid, CMOS/pulse (unipolar), Adj-Pulse with fixed pulse width, DC/off
 //   - modulation of CH1: AM, FM, PM, ASK, FSK, PSK and BURST; sources CH2, Counter input,
@@ -36,10 +39,14 @@
 // =====================================================================================
 
 module fy_fpga #(
-    // Phase shift of the CH2 DAC clock in picoseconds (PLL output clk1). 6000 ps = 270 deg at
-    // 125 MHz. The CH2 DAC clock pin (129) sits next to the MSB (128); without this shift the
-    // clock edge coincided with the data transitions and produced spikes on steep edges.
-    parameter DAC2_PHASE_PS = "6000"
+    // The DACs run at 250 MSPS: two samples per 125 MHz system clock, sent with DDR output
+    // registers (first sample while clk is high, second while it is low). The DAC clocks are
+    // 250 MHz PLL outputs; the phase shift (ps, relative to clk) places the rising edge
+    // inside the 4 ns data window. 2000 ps = middle of the window.
+    parameter DAC1_PHASE_PS = "2000",
+    // The CH2 DAC clock pin (129) sits next to the MSB (128): at 125 MSPS a clock edge that
+    // coincided with a data transition produced spikes on steep edges.
+    parameter DAC2_PHASE_PS = "2000"
 ) (
     input  wire        clk10,         // 10 MHz TCXO (pin 23, CLK1)
     // SPI from the STM32 (front panel)
@@ -86,7 +93,9 @@ module fy_fpga #(
 );
 
     // ---------------------------------------------------------------------------------
-    // PLL: 10 MHz -> 125 MHz system clock (the DAC-1412 is specified up to 125 MSPS)
+    // PLL: 10 MHz -> 125 MHz system clock, 250 MHz DAC clocks (two samples per system clock;
+    // the DAC-1412 datasheet goes up to 125 MSPS, but the original design and the board's
+    // output filter are made for 250 MSPS)
     // ---------------------------------------------------------------------------------
     wire [4:0] pll_clk;
     wire       locked;
@@ -96,16 +105,17 @@ module fy_fpga #(
         .compensate_clock ("CLK0"), .inclk0_input_frequency (100000),
         // clk0: 125 MHz system clock (DDS, register file, flash controller)
         .clk0_multiply_by (25), .clk0_divide_by (2), .clk0_duty_cycle (50), .clk0_phase_shift ("0"),
-        // clk1: CH2 DAC clock, shifted so that its rising edge comes DAC2_PHASE_PS after the
-        //       data transition
-        .clk1_multiply_by (25), .clk1_divide_by (2), .clk1_duty_cycle (50), .clk1_phase_shift (DAC2_PHASE_PS),
+        // clk1: CH2 DAC clock 250 MHz, rising edge DAC2_PHASE_PS after the data transition
+        .clk1_multiply_by (25), .clk1_divide_by (1), .clk1_duty_cycle (50), .clk1_phase_shift (DAC2_PHASE_PS),
         // clk2: 125 MHz for the counter's pulse width measurement (8 ns steps, reported in
         //       4 ns units)
         .clk2_multiply_by (25), .clk2_divide_by (2), .clk2_duty_cycle (50), .clk2_phase_shift ("0"),
+        // clk3: CH1 DAC clock 250 MHz, rising edge DAC1_PHASE_PS after the data transition
+        .clk3_multiply_by (25), .clk3_divide_by (1), .clk3_duty_cycle (50), .clk3_phase_shift (DAC1_PHASE_PS),
         .width_clock (5),
         .port_inclk0 ("PORT_USED"), .port_inclk1 ("PORT_UNUSED"),
         .port_clk0 ("PORT_USED"), .port_clk1 ("PORT_USED"), .port_clk2 ("PORT_USED"),
-        .port_clk3 ("PORT_UNUSED"), .port_clk4 ("PORT_UNUSED"),
+        .port_clk3 ("PORT_USED"), .port_clk4 ("PORT_UNUSED"),
         .port_locked ("PORT_USED"), .port_areset ("PORT_UNUSED")
     ) u_pll (.inclk ({1'b0, clk10}), .clk (pll_clk), .locked (locked));
     wire clk = pll_clk[0];
@@ -534,14 +544,27 @@ module fy_fpga #(
     // Wave RAMs channel 1 and 2 (8192 x 14 bit M9K blocks, initialised with a sine until
     // the firmware loads the selected waveform)
     // ---------------------------------------------------------------------------------
+    // Port A reads the first sample of each clock, port B writes (waveform load from the
+    // flash) or reads the second sample. While a waveform is loaded the second sample is
+    // meaningless anyway (the table changes under the running DDS).
     reg [13:0] wave1 [0:8191];
     reg [13:0] wave2 [0:8191];
     initial begin
         $readmemh("sine8192.hex", wave1);
         $readmemh("sine8192.hex", wave2);
     end
-    always @(posedge clk) if (w1_we) wave1[w_addr] <= w_data;
-    always @(posedge clk) if (w2_we) wave2[w_addr] <= w_data;
+    wire [12:0] ab1, ab2;                               // second-sample addresses (dds_ch)
+    reg  [13:0] w1_qb = 14'd0, w2_qb = 14'd0;            // power-up 0 like the M9K output
+    wire [12:0] a1p = w1_we ? w_addr : ab1;
+    wire [12:0] a2p = w2_we ? w_addr : ab2;
+    always @(posedge clk) begin
+        if (w1_we) begin wave1[a1p] <= w_data; w1_qb <= w_data; end
+        else w1_qb <= wave1[a1p];
+    end
+    always @(posedge clk) begin
+        if (w2_we) begin wave2[a2p] <= w_data; w2_qb <= w_data; end
+        else w2_qb <= wave2[a2p];
+    end
 
     // ---------------------------------------------------------------------------------
     // Frequency calibration
@@ -609,45 +632,69 @@ module fy_fpga #(
     always @(posedge clk) w1_q <= wave1[ph1[47:35]];
     always @(posedge clk) w2_q <= wave2[ph2[47:35]];
 
+    // Frequency -> phase increment for CH1, CH2 and the modulation frequency: one shared
+    // sequential converter (a new value at least every 120 clocks, < 1 us)
+    wire [47:0] inc_c1, inc_c2, inc_m1;
+    f2inc3 u_f2i3 (
+        .clk (clk), .f0 ({regs[6'h06], regs[6'h07]}), .f1 ({regs[6'h08], regs[6'h09]}),
+        .f2 ({regs[6'h1E], regs[6'h20]}), .k (kfreq), .inc0 (inc_c1), .inc1 (inc_c2), .inc2 (inc_m1)
+    );
+    wire [13:0] d1a, d1b, d2a, d2b;                     // DAC samples: first / second half
+
     // Channel 1: all modulation inputs connected (CH1 is the modulated channel)
-    dds_ch u_ch1 (
+    dds_ch #(.EXT_INC (1)) u_ch1 (
         .clk (clk), .run (locked),
         .freq ({regs[6'h06], regs[6'h07]}), .kfreq (kfreq),
         .ph_load (ph_sync | ul_sync), .ph_val (regs[6'h0A][19:0]),
         .mode (regs[6'h04][2:0]), .duty (regs[6'h30][17:0]),
         .r_gain (regs[6'h32]), .r_width (regs[6'h34]),
-        .phase (ph1), .wq (w1_q), .dac (dac_d), .ttl (ttl1), .ttl_on (ttl1_on), .ttl_early (ttl1_early),
-        .mod_mode (regs[6'h21][6:0]), .mod_sig (dac2_d), .am_depth (regs[6'h2E][11:0]),
+        .phase (ph1), .wq (w1_q), .dac (d1a), .ttl (ttl1), .ttl_on (ttl1_on), .ttl_early (ttl1_early),
+        .inc_ext (inc_c1), .inc2_ext (inc_m1), .addr_b (ab1), .wq_b (w1_qb), .dac_b (d1b),
+        .mod_mode (regs[6'h21][6:0]), .mod_sig (d2a), .am_depth (regs[6'h2E][11:0]),
         .mod_freq ({regs[6'h1E], regs[6'h20]}), .pm_dev (regs[6'h36][17:0]),
         .bsrc_n (regs[6'h19][23:0]), .manu (regs[6'h18][0]), .ext_ac (xac_s[1]), .ext_dc (xdc_s[1]),
         .ext_mod (regs[6'h2D][11:0]), .pw (regs[6'h1D])
     );
     // Channel 2: modulation inputs tied to constants (synthesis removes the modulation logic,
     // the output latency stays identical to CH1)
-    dds_ch u_ch2 (
+    dds_ch #(.EXT_INC (1)) u_ch2 (
         .clk (clk), .run (locked),
         .freq ({regs[6'h08], regs[6'h09]}), .kfreq (kfreq),
         .ph_load (ph_sync | ul_sync), .ph_val (regs[6'h0B][19:0]),
         .mode (regs[6'h04][5:3]), .duty (regs[6'h31][17:0]),
         .r_gain (regs[6'h33]), .r_width (regs[6'h35]),
-        .phase (ph2), .wq (w2_q), .dac (dac2_d), .ttl (ttl2), .ttl_on (ttl2_on), .ttl_early (),
+        .phase (ph2), .wq (w2_q), .dac (d2a), .ttl (ttl2), .ttl_on (ttl2_on), .ttl_early (),
+        .inc_ext (inc_c2), .inc2_ext (48'd0), .addr_b (ab2), .wq_b (w2_qb), .dac_b (d2b),
         .mod_mode (7'd0), .mod_sig (14'h2000), .am_depth (12'd0),
         .mod_freq (64'd0), .pm_dev (18'd0),
         .bsrc_n (24'd0), .manu (1'b0), .ext_ac (1'b0), .ext_dc (1'b0),
         .ext_mod (12'h800), .pw (32'd0)
     );
 
-    // CH1 DAC clock: inverted system clock from a DDR output register (data changes with the
-    // rising system clock, the DAC latches in the middle of the data eye)
+    // DAC data: DDR output registers, first sample while clk is high, second while it is low
     altddio_out #(
-        .intended_device_family ("Cyclone IV E"), .width (1), .lpm_type ("altddio_out")
-    ) u_dacclk (
-        .datain_h (1'b0), .datain_l (1'b1), .outclock (clk), .dataout (dac_clk),
+        .intended_device_family ("Cyclone IV E"), .width (14), .lpm_type ("altddio_out")
+    ) u_dacd1 (
+        .datain_h (d1a), .datain_l (d1b), .outclock (clk), .dataout (dac_d),
         .aclr (1'b0), .aset (1'b0), .oe (1'b1), .outclocken (1'b1),
         .sclr (1'b0), .sset (1'b0), .oe_out ()
     );
-    // CH2 DAC clock: separate, phase-shifted PLL output so that no clock edge coincides with
-    // a data transition (spikes on steep edges, clock pin 129 is next to the MSB pin 128)
+    altddio_out #(
+        .intended_device_family ("Cyclone IV E"), .width (14), .lpm_type ("altddio_out")
+    ) u_dacd2 (
+        .datain_h (d2a), .datain_l (d2b), .outclock (clk), .dataout (dac2_d),
+        .aclr (1'b0), .aset (1'b0), .oe (1'b1), .outclocken (1'b1),
+        .sclr (1'b0), .sset (1'b0), .oe_out ()
+    );
+    // DAC clocks: 250 MHz PLL outputs through DDR output registers (same output path as the
+    // data, so the phase shift of the PLL output sets the position of the latch edge)
+    altddio_out #(
+        .intended_device_family ("Cyclone IV E"), .width (1), .lpm_type ("altddio_out")
+    ) u_dacclk (
+        .datain_h (1'b1), .datain_l (1'b0), .outclock (pll_clk[3]), .dataout (dac_clk),
+        .aclr (1'b0), .aset (1'b0), .oe (1'b1), .outclocken (1'b1),
+        .sclr (1'b0), .sset (1'b0), .oe_out ()
+    );
     altddio_out #(
         .intended_device_family ("Cyclone IV E"), .width (1), .lpm_type ("altddio_out")
     ) u_dacclk2 (
@@ -668,11 +715,15 @@ module fy_fpga #(
     end
 
     // TTL outputs: 0 deg and inverted (output registers packed into the I/O elements).
-    // The inverted outputs are forced low when the channel is off (mode 7).
+    // The inverted outputs are forced low when the channel is off (mode 7). One extra clock
+    // (ttl*_d) matches the DDR output register of the DAC data.
+    reg ttl1_d = 1'b0, ttl2_d = 1'b0, ttl1_on_d = 1'b0, ttl2_on_d = 1'b0;
     always @(posedge clk) begin
-        ttl_a <= ttl1;  ttl_b <= ttl1_on & ~ttl1;
-        ttl_c <= ttl2;  ttl_d <= ttl2_on & ~ttl2;
-        sync_out <= (regs[6'h05][6:5] == 2'b00) ? ttl1_early : ttl1;   // master: without output delay
+        ttl1_d <= ttl1;  ttl1_on_d <= ttl1_on;
+        ttl2_d <= ttl2;  ttl2_on_d <= ttl2_on;
+        ttl_a <= ttl1_d;  ttl_b <= ttl1_on_d & ~ttl1_d;
+        ttl_c <= ttl2_d;  ttl_d <= ttl2_on_d & ~ttl2_d;
+        sync_out <= (regs[6'h05][6:5] == 2'b00) ? ttl1_early : ttl1_d;   // master: without output delay
     end
 
     // MCP4822: /LDAC tied low, outputs update at the end of each SPI word
@@ -695,7 +746,9 @@ endmodule
 // Output latency from the phase register to the DAC register (identical with and without
 // modulation): table waveforms 9 clocks, trapezoid 11, square/CMOS/pulse 12.
 // =====================================================================================
-module dds_ch (
+module dds_ch #(
+    parameter EXT_INC = 0         // 1: increments from inc_ext / inc2_ext (shared converter)
+) (
     input  wire        clk,
     input  wire        run,       // accumulator runs (PLL locked)
     input  wire [63:0] freq,      // {0x06, 0x07} / {0x08, 0x09}: {uHz remainder, 0.1 Hz units}, see f2inc
@@ -712,6 +765,12 @@ module dds_ch (
     output wire        ttl_early, // like ttl, but without latency matching (1 clock after the phase)
     input  wire [13:0] wq,        // wave RAM output for phase[47:35]
     output reg  [13:0] dac = 14'h2000,
+    // second sample of each clock (250 MSPS): half a phase step later
+    input  wire [47:0] inc_ext,   // EXT_INC = 1: carrier increment
+    input  wire [47:0] inc2_ext,  // EXT_INC = 1: FM deviation / FSK hop increment
+    output reg  [12:0] addr_b = 13'd0, // wave RAM address of the second sample (1 clock after phase)
+    input  wire [13:0] wq_b,      // wave RAM output for addr_b
+    output reg  [13:0] dac_b = 14'h2000,
     // Modulation (only used on CH1; constant on CH2 -> removed by synthesis, latency unchanged)
     input  wire [6:0]  mod_mode,  // register 0x21: b0 PSK, b1 FSK, b2 ASK, b3 AM, b4 external source, b5 FM, b6 PM
     input  wire [13:0] mod_sig,   // internal modulation signal = CH2 DAC value (centre 0x2000)
@@ -730,8 +789,13 @@ module dds_ch (
     // ---------------------------------------------------------------------------------
     wire [47:0] inc, inc2;
     reg  [13:0] sq_out = 14'd0, cm_out = 14'h2000;   // outputs of the edge interpolation (below)
-    f2inc u_f2i  (.clk (clk), .freq (freq),     .k (kfreq), .inc (inc));
-    f2inc u_f2i2 (.clk (clk), .freq (mod_freq), .k (kfreq), .inc (inc2));
+    generate if (EXT_INC) begin : g_ext
+        assign inc  = inc_ext;
+        assign inc2 = inc2_ext;
+    end else begin : g_int
+        f2inc u_f2i  (.clk (clk), .freq (freq),     .k (kfreq), .inc (inc));
+        f2inc u_f2i2 (.clk (clk), .freq (mod_freq), .k (kfreq), .inc (inc2));
+    end endgenerate
 
     // ---------------------------------------------------------------------------------
     // Modulation signal, signed, approx. -16383..+16383 (= -1..+1)
@@ -858,6 +922,14 @@ module dds_ch (
     reg  ph_wrap = 1'b0;
     reg  [47:0] ph_idle = 48'hFFFF_FFFF_FFFF;     // burst idle: start phase - 1 LSB
     wire [47:0] ph_next = acc + pm_off;
+    // Second sample: phase + inc_eff / 2, one clock later (only the upper 24 bits are
+    // added: the address can be off by one only within 1/2048 of a table step)
+    reg  [23:0] hinc = 24'd0;
+    wire [23:0] ph_b = phase[47:24] + hinc;
+    always @(posedge clk) begin
+        hinc   <= b_hold ? 24'd0 : inc_eff[47:25];
+        addr_b <= ph_b[23:11];
+    end
     always @(posedge clk) begin
         ph_idle <= {ph_val, 28'd0} - 48'd1;
         phase   <= b_hold ? ph_idle : ph_next;
@@ -881,6 +953,8 @@ module dds_ch (
     reg [14:0] tz_fe = 15'd0;
     reg [13:0] wq_r = 14'h2000;        // register stage after the wave RAM (125 MHz)
     reg [13:0] dac_pre = 14'h2000;
+    reg [13:0] dac_pre_b = 14'h2000;   // second sample: table waveforms from port B, all
+                                       // other modes repeat the first sample
     always @(posedge clk) begin
         wq_r   <= wq;
         mode_r <= mode;
@@ -915,13 +989,13 @@ module dds_ch (
         endcase
 
         case (mode_r)
-            3'd1:       dac_pre <= sq_out;      // square with edge interpolation
+            3'd1:       begin dac_pre <= sq_out; dac_pre_b <= sq_out; end   // square with edge interpolation
             // CMOS / pulse: unipolar from the centre to full scale; the firmware writes twice
             // the amplitude for these modes
-            3'd3, 3'd4: dac_pre <= cm_out;
-            3'd2:       dac_pre <= tz_out;
-            3'd7:       dac_pre <= 14'h2000;    // DC / channel off: centre (0 V before the offset)
-            default:    dac_pre <= wq_r;
+            3'd3, 3'd4: begin dac_pre <= cm_out; dac_pre_b <= cm_out; end
+            3'd2:       begin dac_pre <= tz_out; dac_pre_b <= tz_out; end
+            3'd7:       begin dac_pre <= 14'h2000; dac_pre_b <= 14'h2000; end  // DC / off: centre
+            default:    begin dac_pre <= wq_r; dac_pre_b <= wq_b; end   // table: port B = second sample
         endcase
     end
 
@@ -1036,6 +1110,19 @@ module dds_ch (
         if (mm[3])                      dac <= 14'h2000 + o5[25:12];   // AM
         else if (mm[2] && !hi_d[4])     dac <= 14'h2000;               // ASK, not keyed: off
         else                            dac <= dp5;
+    end
+    // Same pipeline for the second sample (same envelope)
+    reg  [13:0]        db1 = 14'h2000, db2 = 14'h2000, db3 = 14'h2000, db4 = 14'h2000, db5 = 14'h2000;
+    reg  signed [14:0] cb1 = 0, cb2 = 0, cb3 = 0, cb4 = 0;
+    reg  signed [29:0] ob5 = 0;
+    always @(posedge clk) begin
+        db1 <= dac_pre_b; db2 <= db1; db3 <= db2; db4 <= db3; db5 <= db4;
+        cb1 <= $signed({1'b0, dac_pre_b}) - 15'sd8192;
+        cb2 <= cb1; cb3 <= cb2; cb4 <= cb3;
+        ob5 <= cb4 * egn;
+        if (mm[3])                      dac_b <= 14'h2000 + ob5[25:12];
+        else if (mm[2] && !hi_d[4])     dac_b <= 14'h2000;
+        else                            dac_b <= db5;
     end
 
     // ---------------------------------------------------------------------------------
@@ -1201,6 +1288,68 @@ module f2inc (
             mi     <= 6'd37;
         end else begin
             inc <= {acc_hi[40:0], acc_lo[42:36]};    // = (F * k)[83:36]
+            mi  <= 6'd0;
+        end
+    end
+endmodule
+
+
+// =====================================================================================
+// f2inc3 - f2inc shared by three frequencies (CH1, CH2, modulation frequency)
+//   Same arithmetic as f2inc; the inputs are converted in turn, 40 clocks each:
+//     0: latch the selected input, 1: remainder multiply, 2: load, 3..37: 35 shift-and-add
+//     steps over k, 38: last carry, 39: store the result
+// =====================================================================================
+module f2inc3 (
+    input  wire        clk,
+    input  wire [63:0] f0, f1, f2,
+    input  wire [34:0] k,
+    output reg  [47:0] inc0 = 48'd0, inc1 = 48'd0, inc2 = 48'd0
+);
+    reg [1:0]  sel = 2'd0;
+    reg [63:0] fin = 64'd0;
+    reg [34:0] frac_p = 35'd0;
+    always @(posedge clk) frac_p <= fin[48:32] * 18'd171799;
+    wire [49:0] fq = {fin[29:0], frac_p[33:14]};
+
+    reg [5:0]  mi = 6'd0;
+    reg [84:0] msh = 85'd0;
+    reg [42:0] acc_lo = 43'd0;
+    reg [41:0] acc_hi = 42'd0;
+    reg        acc_cy = 1'b0;
+    wire [43:0] lo_sum = {1'b0, acc_lo} + {1'b0, msh[42:0]};
+    wire [47:0] res = {acc_hi[40:0], acc_lo[42:36]};    // = (F * k)[83:36]
+    always @(posedge clk) begin
+        if (mi == 6'd0) begin
+            fin <= (sel == 2'd0) ? f0 : (sel == 2'd1) ? f1 : f2;
+            mi  <= 6'd1;
+        end else if (mi == 6'd1) begin
+            mi  <= 6'd2;                               // frac_p follows fin
+        end else if (mi == 6'd2) begin
+            msh    <= {35'd0, fq};
+            acc_lo <= 43'd0;
+            acc_hi <= 42'd0;
+            acc_cy <= 1'b0;
+            mi     <= 6'd3;
+        end else if (mi <= 6'd37) begin
+            if (k[mi - 6'd3]) begin
+                acc_lo <= lo_sum[42:0];
+                acc_hi <= acc_hi + msh[84:43] + {41'd0, acc_cy};
+                acc_cy <= lo_sum[43];
+            end
+            msh <= msh << 1;
+            mi  <= mi + 6'd1;
+        end else if (mi == 6'd38) begin
+            acc_hi <= acc_hi + {41'd0, acc_cy};
+            acc_cy <= 1'b0;
+            mi     <= 6'd39;
+        end else begin
+            case (sel)
+                2'd0:    inc0 <= res;
+                2'd1:    inc1 <= res;
+                default: inc2 <= res;
+            endcase
+            sel <= (sel == 2'd2) ? 2'd0 : sel + 2'd1;
             mi  <= 6'd0;
         end
     end

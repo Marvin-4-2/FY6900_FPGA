@@ -2,13 +2,13 @@
 
 | File | Content |
 |---|---|
-| `fy6900_fpga_v0.20.rbf` | FPGA bitstream v0.20 (Quartus raw binary for EP4CE6E22C8N) |
+| `fy6900_fpga_v0.21.rbf` | FPGA bitstream v0.21 (Quartus raw binary for EP4CE6E22C8N) |
 | `SHA256SUMS` | SHA-256 of the release files |
 
 The `.rbf` is not programmed directly: insert it into a backup of **your own** flash with
 
 ```
-python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.20.rbf patched.bin --board V2.1
+python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.21.rbf patched.bin --board V2.1
 python tools/fy6900_flash.py pof patched.bin patched.pof
 ```
 
@@ -17,10 +17,21 @@ python tools/fy6900_flash.py pof patched.bin patched.pof
 
 and program `patched.pof` as described in [docs/installation.md](../docs/installation.md).
 After patching, the bitstream area of the image (flash 0x000000–0x059FFF) has the SHA-256
-`87e80d4248bb0f9b0a4396c0fa6858250fa1e6c0e6002802c5026e9ea878fac9`.
+`3b1e79607b2f9a57427d7f1b074e51de7f9029402fbce432c4d9b9df52b6e9fb`.
 
 The bitstream is built from the sources in [`fpga/`](../fpga) without changes; a clean
 compile with Quartus Prime 25.1 Lite reproduces it bit for bit.
+
+## v0.21
+
+250 MSPS: the DACs now run at 250 MSPS like in the original design (two samples per 125 MHz
+clock, DDR output registers, 250 MHz DAC clocks). At 125 MSPS a sine above about 40 MHz came
+with an image at 125 MHz − f that the board's output filter barely removes – at 60 MHz the
+output looked amplitude-modulated with 5 MHz. Now the 60 MHz sine is clean, and the
+sin(x)/x roll-off at 60 MHz drops from −3.6 dB to −0.8 dB. Tested on the V2.1 unit (sine up
+to 60 MHz with the scope's FFT, AM up to 60 MHz, custom waveforms, upload and switching,
+channel phase, Port A, counter, burst, FM/FSK/PSK, all waveform types, frequency digits) and
+with all testbenches (117 checks, including the new `tb_250`). Everything else as in v0.20.
 
 ## v0.20
 

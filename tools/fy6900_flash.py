@@ -64,6 +64,8 @@ KNOWN_BITSTREAMS = {
         ("project", "FY6900_FPGA v0.19 (this project)"),
     "87e80d4248bb0f9b0a4396c0fa6858250fa1e6c0e6002802c5026e9ea878fac9":
         ("project", "FY6900_FPGA v0.20 (this project)"),
+    "3b1e79607b2f9a57427d7f1b074e51de7f9029402fbce432c4d9b9df52b6e9fb":
+        ("project", "FY6900_FPGA v0.21 (this project)"),
 }
 
 # FPGA board revisions (as printed on the FPGA board) -> (status, description).

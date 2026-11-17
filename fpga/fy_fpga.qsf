@@ -48,7 +48,6 @@ set_location_assignment PIN_55 -to dac_d[3]
 set_location_assignment PIN_54 -to dac_d[2]
 set_location_assignment PIN_53 -to dac_d[1]
 set_location_assignment PIN_52 -to dac_d[0]
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to dac_d[*]
 
 # MCP4822 channel 1
 set_location_assignment PIN_74 -to mcp_ldac_n
@@ -76,7 +75,6 @@ set_location_assignment PIN_113 -to dac2_d[3]
 set_location_assignment PIN_112 -to dac2_d[2]
 set_location_assignment PIN_111 -to dac2_d[1]
 set_location_assignment PIN_110 -to dac2_d[0]
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to dac2_d[*]
 
 # MCP4822 channel 2
 set_location_assignment PIN_103 -to mcp2_ldac_n

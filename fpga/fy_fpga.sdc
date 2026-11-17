@@ -18,7 +18,7 @@ derive_clock_uncertainty
 
 # The SPI domain, the system domain, the pulse width domain and the counter inputs are
 # asynchronous to each other (all crossings use toggle synchronisation or double sampling)
-set_clock_groups -asynchronous -group [get_clocks spi_sck] -group [get_clocks {clk10 u_pll|auto_generated|pll1|clk[0] u_pll|auto_generated|pll1|clk[1]}] -group [get_clocks {u_pll|auto_generated|pll1|clk[2]}] -group [get_clocks {cnt_in trig_in}]
+set_clock_groups -asynchronous -group [get_clocks spi_sck] -group [get_clocks {clk10 u_pll|auto_generated|pll1|clk[0] u_pll|auto_generated|pll1|clk[1] u_pll|auto_generated|pll1|clk[3]}] -group [get_clocks {u_pll|auto_generated|pll1|clk[2]}] -group [get_clocks {cnt_in trig_in}]
 # Counter input and Trig IN are never active at the same time (multiplexer, register 0x05 bit 4)
 set_clock_groups -logically_exclusive -group [get_clocks cnt_in] -group [get_clocks trig_in]
 

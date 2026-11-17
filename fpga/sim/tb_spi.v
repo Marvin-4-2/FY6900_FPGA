@@ -13,6 +13,8 @@
 //   - uplink slave: a rising edge at Sync IN reloads the start phase, no effect when off
 //   - uplink master: Sync OUT carries the early (undelayed) phase reference
 //   - frequency calibration: K computed from registers 0x22:0x23, limits and fallback
+//   - frequency format (0.1 Hz units + uHz remainder) for CH1, CH2 and the modulation frequency
+//   - DAC pins (250 MSPS): first sample of each clock while clk is high, second while it is low
 // Needs the Intel simulation libraries altera_mf_ver and lpm_ver (altpll, altddio_out) and
 // must be run from the fpga/ directory (reads sine8192.hex).
 // =====================================================================================
@@ -77,7 +79,8 @@ module tb_spi;
     end endtask
 
     reg [31:0] rv;
-    integer k;
+    integer k, kd;
+    reg [13:0] a1, b1, a2, b2;
     reg ttl1_early_d0 = 0; always @(posedge dut.clk) ttl1_early_d0 <= dut.ttl1_early;
     initial begin
         wait (dut.locked); #2000;
@@ -131,6 +134,18 @@ module tb_spi;
         fchk(8'h06, 8'h07, 32'd10_000,      32'd0,     0, "CH1 1 kHz (no remainder)");
         fchk(8'h08, 8'h09, 32'd123_456_789, 32'd12345, 1, "CH2 12 345 678.912345 Hz");
         fchk(8'h1E, 8'h20, 32'd12_345,      32'd6789,  2, "FM/FSK 1234.506789 Hz");
+
+        // DAC pins: DDR output registers, first sample of each clock while clk is high, second
+        // while it is low (CH1 60 MHz, CH2 12.3 MHz from the frequency checks above)
+        fpga_write(8'h06, 32'd0); fpga_write(8'h07, 32'd600_000_000); #3000;
+        k = 0; kd = 0;
+        repeat (500) begin
+            @(posedge dut.clk); a1 = dut.d1a; b1 = dut.d1b; a2 = dut.d2a; b2 = dut.d2b;
+            if (a1 != b1) kd = kd + 1;
+            #2; if (dut.dac_d !== a1 || dut.dac2_d !== a2) k = k + 1;
+            @(negedge dut.clk); #2; if (dut.dac_d !== b1 || dut.dac2_d !== b2) k = k + 1;
+        end
+        check("DAC pins: first sample while clk is high, second while it is low", k == 0 && kd > 100);
         if (n_fail == 0) $display("RESULT: PASS (%0d checks)", n_check);
         else             $display("RESULT: FAIL (%0d of %0d checks failed)", n_fail, n_check);
         $finish;

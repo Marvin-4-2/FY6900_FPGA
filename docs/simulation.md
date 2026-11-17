@@ -12,7 +12,7 @@ quartus_sh --flow compile fy_fpga
 
 Results: `fy_fpga.sof` and `fy_fpga.rbf` (raw binary, used by `tools/fy6900_flash.py`).
 Check the timing summary (`fy_fpga.sta.rpt`): all slacks must be positive. The design uses
-about 94 % of the logic, so changes may need pipelining to keep 125 MHz.
+about 96 % of the logic, so changes may need pipelining to keep 125 MHz.
 
 The compile prints thousands of warnings "truncated value with size 16 … sine8192.hex" –
 Quartus reads the 4-digit hex values as 16 bits; they are harmless.
@@ -31,7 +31,8 @@ per check and a final `RESULT:` line.
 | `tb_fm.v` | FM without mean frequency offset, PM scale |
 | `tb_ttl.v` | position of the TTL edges relative to the DAC output, duty cycle, channel off |
 | `tb_adjp.v` | Adj-Pulse widths (100 µs at 1 and 2 kHz, 4 ns steps, 100 ns at 10 Hz, limits) |
-| `tb_spi.v` | complete top level: SPI writes/reads/VCO-IN frames as sent by firmware 1.8.0, ID registers, uplink master/slave, frequency calibration |
+| `tb_250.v` | 250 MSPS: both samples of each clock against the table value at their exact phase (60 MHz, 12.3456789 MHz, 1 kHz, FM), AM on both samples (envelope 0, 1 and 0.5), square and burst idle repeat the first sample |
+| `tb_spi.v` | complete top level: SPI writes/reads/VCO-IN frames as sent by firmware 1.8.0, ID registers, uplink master/slave, frequency calibration, frequency format, order of the two samples on the DAC pins |
 | `tb_flashwr.v` | flash writes against a W25Q flash model that wraps addresses like the real chip, with the firmware's exact upload sequence: JEDEC ID → flash size, erase + program + read-back of a slot, single-byte read, write guard (bitstream area, slot starting below 0x05A000, addresses beyond the flash size). Three top levels: `tb_flash16` (W25Q16), `tb_flash32` (W25Q32), `tb_flashid` (unknown ID: no writes) |
 
 Run them with Questa (the Intel FPGA Starter edition installed with Quartus):
@@ -42,7 +43,7 @@ QUESTA_BIN=/path/to/questa_fse/win64 fpga/sim/run_all.sh
 powershell -File fpga\sim\run_all.ps1 -QuestaBin C:\path\to\questa_fse\win64
 ```
 
-Expected result for v0.20 (107 checks):
+Expected result for v0.21 (117 checks):
 
 ```
 tb_burst: RESULT: PASS (15 checks)
@@ -50,7 +51,8 @@ tb_manu: RESULT: PASS (6 checks)
 tb_fm: RESULT: PASS (3 checks)
 tb_ttl: RESULT: PASS (4 checks)
 tb_adjp: RESULT: PASS (9 checks)
-tb_spi: RESULT: PASS (31 checks)
+tb_250: RESULT: PASS (9 checks)
+tb_spi: RESULT: PASS (32 checks)
 tb_flash16: RESULT: PASS (13 checks)
 tb_flash32: RESULT: PASS (14 checks)
 tb_flashid: RESULT: PASS (12 checks)

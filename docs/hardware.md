@@ -38,7 +38,7 @@ the power supply.
 | Intel/Altera Cyclone IV E **EP4CE6E22C8N** (EQFP-144) | FPGA, 6272 LEs, 30 9-bit multipliers, 270 kbit block RAM |
 | **W25Q16JV** | 2 MB SPI flash: FPGA bitstream (Active Serial) + waveform tables. Some FY6900 revisions use a 4 MB **W25Q32** instead (see [below](#spi-flash-w25q16--w25q32)) |
 | 10.000 MHz **TCXO** | reference clock, FPGA pin 23 (CLK1) via series resistor |
-| 2 × Datel **DAC-1412** | 14-bit, up to 125 MSPS current-output DACs (CH1, CH2), straight binary, latch on the rising clock edge |
+| 2 × Datel **DAC-1412** | 14-bit current-output DACs (CH1, CH2), straight binary, latch on the rising clock edge; datasheet up to 125 MSPS, run at 250 MSPS like in the original design |
 | 2 × Microchip **MCP4822** | dual 12-bit DAC per channel: amplitude and offset |
 | 4 × NEC **EA2-5** relays | output range per channel ("large" = gain, "small" = attenuator) |
 | AD8009 and other op-amps | reconstruction filter and output amplifiers |
@@ -51,17 +51,25 @@ samples the VCO-IN voltage with its ADC (PA0) and sends it to the FPGA.
 
 ## Clocking
 
-The 10 MHz TCXO feeds PLL1 of the FPGA. The design generates three 125 MHz clocks:
+The 10 MHz TCXO feeds PLL1 of the FPGA (VCO 500 MHz). The design generates:
 
 | PLL output | Use |
 |---|---|
 | clk0 125 MHz | system clock: DDS, register file, flash controller, counter gate |
-| clk1 125 MHz, +6 ns | CH2 DAC clock (shifted so that no clock edge coincides with a data transition) |
+| clk1 250 MHz, +2 ns | CH2 DAC clock |
 | clk2 125 MHz | pulse width measurement of the counter |
+| clk3 250 MHz, +2 ns | CH1 DAC clock |
 
-The CH1 DAC clock is the inverted system clock from a DDR output register. The DAC-1412 is
-specified up to 125 MSPS; the original design ran its DDS at 250 MHz (reference registers
-0x22:0x23).
+The DACs run at **250 MSPS**: each channel computes two samples per system clock, and DDR
+output registers send the first while the system clock is high and the second while it is
+low. The DAC clocks leave the FPGA through DDR output registers too; their 2 ns shift puts
+the rising (latch) edge in the middle of each 4 ns data window.
+
+The DAC-1412 is specified up to 125 MSPS, but the original design ran at 250 MHz as well
+(reference registers 0x22:0x23, PLL setting of the stock bitstream), and the output filter
+on the board is made for it: at 125 MSPS (v0.9–v0.20) a sine above about 40 MHz came with an
+image at 125 MHz − f close to the signal – at 60 MHz the two beat at 5 MHz. See
+[fpga-design.md](fpga-design.md#250-msps-output).
 
 ## Analog output path
 

@@ -85,6 +85,7 @@ that the stock firmware and its user interface can stay unchanged.
 | – | after the release: a user reported that saving a custom waveform with firmware 1.8.0 corrupts the flash. The firmware analysis and tests with the stock bitstream showed why – 1.8.0 lays out its slots for a 4 MB flash, the original FPGA wraps at 2 MB and protects only part of the bitstream – and the unit was deliberately "killed" with an upload to slot 47 to prove it |
 | v0.19 | **guarded flash writes**: custom waveform upload works; the flash size comes from the JEDEC ID, nothing is written below 0x05A000 or beyond the flash size. Tested with a W25Q32 soldered in |
 | v0.20 | **frequency fix**: the firmware sends frequencies as two decimal parts (0.1 Hz + µHz remainder); v0.19 read them as one binary number, so any digit below 0.1 Hz made the frequency jump. Found by a user, fixed and tested on the unit |
+| v0.21 | **250 MSPS**: the sine got worse towards 60 MHz – at 60 MHz it looked amplitude-modulated with 5 MHz. The scope's FFT showed the image at 125 MHz − f next to the signal: the board's output filter is made for the 250 MSPS of the original design, not for the 125 MSPS of the DAC datasheet. Each channel now computes two samples per 125 MHz clock and sends them through DDR output registers; a shared frequency converter freed the logic for it |
 
 Finally all 144 FPGA pins were mapped from high-resolution photos of the two-layer board:
 the 25 unused I/Os are not connected, so nothing in the signal path is left uncontrolled.
@@ -101,6 +102,9 @@ the 25 unused I/Os are not connected, so nothing in the signal path is left unco
   behaviour existed only in 1.8.0.
 * **Simulate what you cannot easily observe.** Burst counting at 60 MHz, the SPI framing of
   VCO-IN and the calibration division were verified in simulation before they were flashed.
+* **The original design's numbers are a hint.** The firmware's reference registers said
+  250 MHz from the start, the DAC datasheet said 125 MSPS. The analog output filter follows
+  the original design, so 125 MSPS was clean only up to about 40 MHz.
 * **Keep the build reproducible.** Every version was built from a clean compile with a
   verified `.pof`; the English source of this repository produces a bitstream bit-identical
   to the tested v0.18.

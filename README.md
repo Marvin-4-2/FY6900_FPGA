@@ -15,12 +15,12 @@ generator that involves the FPGA.
 
 ## Status
 
-Version **0.20**. Everything below was tested on the unit unless marked otherwise.
+Version **0.21**. Everything below was tested on the unit unless marked otherwise.
 
 | Area | Function | Status |
 |---|---|---|
 | Waveforms | sine and all table waveforms (loaded from the flash), square/rectangle with duty, trapezoid, CMOS/PWM, Adj-Pulse (fixed pulse width), DC, channel on/off | ✅ |
-| | 125 MSPS DDS, up to 60 MHz, 48-bit phase accumulator | ✅ |
+| | 250 MSPS output (two samples per 125 MHz clock), up to 60 MHz, 48-bit phase accumulator – clean sine up to 60 MHz | ✅ |
 | | square edges interpolated between samples (jitter ≈ 0.7 ns instead of 8 ns) | ✅ |
 | Output | amplitude, offset, range relays, phase between the channels | ✅ |
 | Modulation (CH1) | AM, FM, PM, FSK, ASK, PSK, BURST | ✅ |
@@ -37,14 +37,15 @@ Version **0.20**. Everything below was tested on the unit unless marked otherwis
 
 ```
  STM32 front panel ──SPI──> FPGA (this design) ──> 2 × DAC-1412 ──> output amplifiers ──> CH1, CH2
-   (stock firmware)          │  register interface, 2 × DDS @ 125 MSPS,
+   (stock firmware)          │  register interface, 2 × DDS @ 250 MSPS,
                              │  modulation, counter, TTL/sync, calibration
                              └──> W25Q16 SPI flash (bitstream + waveform tables)
 ```
 
 The FPGA (Cyclone IV E EP4CE6E22C8N) receives all settings from the STM32 over SPI, loads
 the selected waveforms from the SPI flash into its wave RAMs and generates both channels with
-48-bit DDS at 125 MSPS. See [docs/fpga-design.md](docs/fpga-design.md).
+48-bit DDS; the DACs run at 250 MSPS like in the original design. See
+[docs/fpga-design.md](docs/fpga-design.md).
 
 ## Quick start
 
@@ -52,7 +53,7 @@ the selected waveforms from the SPI flash into its wave RAMs and generates both 
    (see [Compatibility](#compatibility)). Back up the W25Q16 flash of your unit (2 MB) and
    keep the backup.
 2. Check the dump: `python tools/fy6900_flash.py info backup.bin`
-3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.20.rbf patched.bin --board V2.1`
+3. Patch it: `python tools/fy6900_flash.py patch backup.bin release/fy6900_fpga_v0.21.rbf patched.bin --board V2.1`
    (your board revision)
 4. Convert it: `python tools/fy6900_flash.py pof patched.bin patched.pof`
 5. Program `patched.pof` with a USB-Blaster through the 10-pin header ("Active Serial
@@ -121,8 +122,8 @@ quartus_sh --flow compile fy_fpga
 ```
 
 Quartus Prime Lite with Cyclone IV E support (developed with 25.1). The resulting
-`fy_fpga.rbf` is used with `tools/fy6900_flash.py patch`. The repository source of v0.20
-builds a bitstream identical to [`release/fy6900_fpga_v0.20.rbf`](release). Testbenches:
+`fy_fpga.rbf` is used with `tools/fy6900_flash.py patch`. The repository source of v0.21
+builds a bitstream identical to [`release/fy6900_fpga_v0.21.rbf`](release). Testbenches:
 `fpga/sim/run_all.sh` – see [docs/simulation.md](docs/simulation.md).
 
 ## Roadmap
